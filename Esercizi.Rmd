@@ -1,0 +1,556 @@
+---
+title: "esercizi"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+#Esercizio 1
+Si svolgano le simulazioni dell'esperimento Bayes'billard come riportato nel file delle dispense della parte delle applicazioni considerando i seguenti punti:
+
+##1.1
+Si disegnino in un'unica finestra grafica gli istogrammi delle densit`a condizionate di (p|X = 3) e (p|x = 4), (p|x = 5) e (p|x = 6) (si inseriscano i titoli ai grafici e si salvi la figura);
+```{r}
+nsim <- 10^6
+n <- 10
+p <- runif(nsim)
+
+xcond <- rbinom(nsim,size = n,prob =  p)
+ppost3 <- p[xcond==3]
+ppost4 <- p[xcond==4]
+ppost5 <- p[xcond==5]
+ppost6 <- p[xcond==6]
+
+par(mfrow=c(2,2))
+hist(ppost3, col="pink", breaks = 1000, freq = F)
+hist(ppost4, col="pink", breaks = 1000, freq = F)
+hist(ppost5, col="pink", breaks = 1000, freq = F)
+hist(ppost6, col="pink", breaks = 1000, freq = F)
+```
+
+##1.2 
+Si disegnino le funzioni di ripartizione empiriche delle osservazioni del punto precedente in un unica finestra grafica e si riportino insieme alla legenda
+```{r}
+par(mfrow=c(1,1))
+plot(ecdf(ppost3), main="Confronto Funzioni di ripartizione")
+plot(ecdf(ppost4),add=T, col="red")
+plot(ecdf(ppost5),add=T, col="blue")
+plot(ecdf(ppost6),add=T, col="lightblue")
+legend(0,0.8,c("P|x=3","P|x=4", "P|x=5", "P|x=6"),
+       col=c("black","red","blue","lightblue"), lty=1)
+```
+
+##1.3 
+Si calcolino in base alle conoscenze teoriche i parametri delle distribuzioni disegnate al punto 1.
+
+*Come illustrato partendo da una distribuzione a priori uniforme la distribuzione a posteriori è Beta(?? + k, ?? +n ??? k) pertanto si ha Beta(4, 8), Beta(5, 7), Beta(6, 6), Beta(7, 5)*
+
+##1.4 
+Si riporti figura di cui al punto 1 in cui viene anche sovrapposta all'istogramma la densità calcolata al punto precedente (curve(d..), add=TRUE)
+```{r}
+par(mfrow=c(2,2))
+hist(ppost3, col="pink", breaks = 1000, freq = F)
+curve(dbeta(x,4,8), lwd=3, col=2, main="Dist f(p|x=3)", add=T)
+
+hist(ppost4, col="pink", breaks = 1000, freq = F)
+curve(dbeta(x,5,7), lwd=3, col=2, main="Dist f(p|x=4)", add=T)
+
+hist(ppost5, col="pink", breaks = 1000, freq = F)
+curve(dbeta(x,6,6), lwd=3, col=2, main="Dist f(p|x=5)", add=T)
+
+hist(ppost6, col="pink", breaks = 1000, freq = F)
+curve(dbeta(x,7,5), lwd=3, col=2, main="Dist f(p|x=6)", add=T)
+```
+
+
+##1.5 
+Si calcoli il valore atteso e la moda per ogni distribuzione disegnata al punto 1.
+
+*Il valore atteso risulta pari a k + a / n+a+b*
+*atteso: k+a / n+a+b  moda: k+a-1 / n+a+b*
+*E3=4/12  E4=5/12  E5=6/12  E6=7/12*
+*M3=3/12     4/12     5/12    6/12*
+
+
+#Esercizio 2
+Si supponga di disporre di 2 monete: una truccata con probabilità di testa pari a 3/4 e l'altra non truccata. Si sceglie una moneta tra le due senza riconoscerle. Supponendo di lanciare 3 volte la moneta scelta ed osservando 3 teste, si determini la probabilità di aver scelto la moneta non truccata.
+
+
+A evento 3 volte testa
+Mnt moneta non truccata
+Mt moneta truccata
+
+p(Mnt=testa)=0.5
+p(Mt=testa)=0.75
+Si cerca P(Mt|A)
+
+p(A|Mnt) e P(A|Mt)=(3/4)^3
+
+Applicando Bayes P(Mnt|A)=P(A|Mt)*p(Mnt) / p(A)
+
+Applico regola prob complessiva
+P(A)=P(A|Mnt)P(Mnt)+p(A|Mt)P(Mt)
+
+P(Mnt|A)=P(A|Mnt)P(Mnt) / P(A)=0.5^3 * 0.5 / 0.5^3x0.5 + 3/4^3x0.5=0.23
+
+*La probabilità cercata è pari a 0.23 e si ottiene applicando il teorema della prob totale e la regola di Bayes*
+
+#Esercizio 3
+Si disegnino in un'unica finestra grafica costituita da 6 righe e 6 colonne le seguenti forme assunte dalla densità della variabile casuale Beta al variare dei parametri: (0.5,0.5), (0.5,1), (1,0.5), (1,1), (1,2), (2,1), (2,2), (2,6), (6,2), (3,3), (3,8), (8,3).
+
+
+#Esercizio 4
+##4.1
+Si svolga il punto 1 dell'esercizio 1 considerando n = 50 e k = 35, 37, 40, 43. Si riportino le densità corrispondenti e si calcolino le quantità di cui al punto 5 dell'esercizio 1.
+
+
+##4.2 
+Si calcoli per ogni situazione disegnata E(p), E(p|X = k) e la moda della distribuzione a posteriori. Si nota che le distribuzioni sono più o meno influenzate dalla distribuzione iniziale (a priori) uniforme?
+
+#Esercizio 5
+Supponendo una distribuzione discreta per p(x, theta) e tale che il modello sia il seguente quando theta è in (1, 2, 3):
+x       | 0     1   2     3     4
+p(x,1)  | 1/3 1/3   0    1/6   1/6
+p(x,2)  |1/4  1/4   1/4  1/4   0
+p(x,3)  | 0   0     1/4  1/2   1/4
+come si legge la tabella? 1/3 è la prob di x=0 quando theta=1
+La massima verosimiglianza è il valore maggiore di theta per la distribuzione di x.
+
+##5.1
+Si determini la stima di massima verosimiglianza di theta per ogni valore di x.
+
+```{r}
+#verosimiglianza per theta=1
+ver1 <- 0*1/3 + 1*1/3 + 0 + 3*1/6 + 4*1/6
+ver1
+#verosimiglianza per theta=2
+ver2 <- 0*1/4 + 1*1/4 + 2*1/4 + 3*1/4 + 0
+ver2
+#verosimiglianza per theta=3
+ver3 <- 0 +0 + 2*1/4 + 3*1/2 + 4*1/4
+ver3
+smv <- max(ver1,ver2,ver3)
+smv
+```
+*Il valore di theta_ML è 3*
+
+##5.2 
+Considerando le seguenti probabilità a priori per theta:  p(theta) = 0.2, p(theta) = 0.5 e p(theta) = 0.3 e supponendo di osservare x = 3 si determini la probabilità a posteriori di theta.
+Per fare ciò si deve applicare la regola di Bayes
+Applicando Bayes P(theta|x=3) proporzionale P(theta;x=3)*p(theta)
+Dispense p.7
+E' possibile sulla base delle due informazioni precedenti definire le seguenti probabilità sul parametro condizionate ai valori osservati e alle informazioni iniziali (numeratore dell'equazione di Bayes rule)
+
+```{r}
+#Posterior proporzionale
+#p(theta = 1|X = 1) prop p(X = 1,theta = 1)p(theta = 1)
+
+#p(X = 3,theta = 1)p(theta)
+post_theta1 <- 1/6*0.2
+post_theta1
+#p(X = 3,theta = 2)p(theta)
+post_theta2 <- 1/4*0.5
+post_theta2
+#p(X = 3,theta = 3)p(theta)
+post_theta3 <- 1/2*0.3
+post_theta3
+```
+*La massima probabilità a posteriori è per theta=3*
+
+E' possibile normalizzare le quantità sopra calcolando il valore della costante di normalizzazione
+```{r}
+k <- 1/(sum(post_theta1,post_theta2,post_theta3));k
+post_theta1norm <- post_theta1*k; post_theta1norm
+post_theta2norm <- post_theta2*k; post_theta2norm
+post_theta3norm <- post_theta3*k; post_theta3norm
+```
+
+
+#Esercizio 9
+Si consideri il vettore delle probabilità iniziali pi e la matrice di transizione PI seguente. 
+pi = (0 0 0 1 0 0)
+PI = 1 0 0 0 0 0
+    1-p 0 p 0 0 0??? p 0 p 0 0 0
+    0 1-p 0 p 0 0??? p 0 p 0 0
+    0 0 1-p 0 p 0 ??? p 0 p 0
+    0 0 0 1-p 0 p??? p 0 p
+    0 0 0 0 0 1
+
+##9.1
+Rispetto a 4 possibili scelte per la probabilità p = (0.09, 0.36, 0.69, 0.86) si disegnino di volta in volta almeno 15 percorsi ottenuti con le simulazioni per il processo random walk (si disegni il grafico del percorso con plot(x, type ='l', ylim =c(ini,fine)). Si riportino tutti i percorsi nello stesso grafico e si inseriscano i titoli per ogni grafico e si commentino.
+```{r}
+nsim <- 150
+ttr <- 40
+pass_alias <- function(p, nsim, ini, fine, start, ttr){
+# per simulare ttr valori di una passaggiata aleatoria
+XX <- matrix(0, nrow = nsim, ncol=ttr)
+x <- rep(ini,nsim)
+x[1] <- start
+for(j in 1:ttr){
+for(i in 2:nsim){
+if(x[i-1]==ini || x[i-1]==fine){
+x[i] <- x[i-1]
+}
+else{
+x[i] <- x[i-1] + sample(c(1,-1), 1, prob=c(p,1-p))
+}
+}
+XX[,j]<-x
+}
+return(XX)
+}
+
+#Pertanto prima si creano le matrici contenenti le realizzazioni in basi a diversi valori di p
+Ap1 <- pass_alias(0.09, 150, 0, 5, 4, 40)
+Ap2 <- pass_alias(0.36, 150, 0, 5, 4, 40)
+Ap3 <- pass_alias(0.69, 150, 0, 5, 4, 40)
+Ap4 <- pass_alias(0.86, 150, 0, 5, 4, 40)
+```
+
+Poi si disegnano le traiettorie nella stessa finestra grafica
+```{r}
+par(mfrow=c(3,1))
+matplot(Ap1, type = "l")
+matplot(Ap2, type = "l")
+matplot(Ap3, type = "l")
+```
+*Come visto nelle simulazioni a lezione quando il numero di stati cresce si percorrono un maggior numero di passi prima di passare ad uno dei due stati assorbenti e la probabilità di non precipitare anche dopo 150 passi è maggiore rispetto al caso precedente dove tutte le traittorie finiscono nello stato assorbente.*
+
+##9.4
+Si scelga il secondo stato come stato iniziale e si riporti la figura di cui al punto 1 con i commenti.
+Occorre definire le probabilità iniziali e la matrice di transizione.
+```{r}
+p0<-c(0,0,0,1,0,0)
+p0 <- matrix(c(0,0,0,1,0,0),
+nrow = 1,
+ncol = 6,
+byrow =TRUE); p0
+
+B <- matrix(c(1,0,0,0,0,0,
+0.31,0,0.69,0,0,0,
+0,0.31,0,0.69,0,0,
+0,0,0.31,0,0.69,0,
+0,0,0,0.31,0,0.69,
+0,0,0,0,0,1),
+nrow = 6,
+ncol = 6,
+byrow =TRUE); B
+```
+
+distribuione marginale di ordine 4 della catena
+```{r}
+p0%*%B%*%B%*%B%*%B
+```
+
+
+##9.5
+Si calcoli pi*PI^4 quando p = 0.69.
+
+
+#Esercizio 15
+Si considerino i files dei dati denominati path.Rdata e freq.Rdata che riguardano dei
+punteggi assegnati a 1000 pazienti in 6 visite consecutive e le relative frequenze (dati simulati). La valutazione del medico circa lo stato di salute psicologica dell'individuo è stata espressa rispetto alla seguente scala ordinale: 0 = lieve, 1 = moderata, 2 = grave.
+
+##15.1 
+Si descrivano i dati disponibili e si identifichino i tre pattern di risposta aventi le frequenze più elevate.
+Carico i dati.
+```{r}
+load("path.RData")
+load("freq.RData")
+
+m <- cbind(S,fr)
+df <- as.data.frame(m)
+
+#Identifico le 3 frequenze più elevate
+head(sort(fr,decreasing = T))
+
+#Identifico i pattern relativi alle frequenze più elevate
+subset(df, fr==63 | fr==26 | fr==25)
+```
+*I tre pattern con frequenze più alte sono: 63 soggetti con valutazione ritenuta lieve in tutte le visite mediche effettuate; 25 soggetti con valutazione sempre lieve tranne nella terza visita in cui è stata registrata una situazione di moderata entità; 26 soggetti con valutazione moderata alla prima osservazione e nel resto del periodo valutazione lieve.*
+
+##15.2
+Si riporti la frequenza di coloro che risultano avere la malattia in forma moderata
+durante tutte le visite.
+```{r}
+subset(df,df$V1==1 & df$V2==1 & df$V3==1 & df$V4==1 & df$V5==1 & df$V6==1)
+```
+*Solo 2 soggetti hanno la malattia in forma moderata durante tutte le visite.*
+
+
+##15.3
+Si utilizzi la libreria LMest per stimare un modello latente di Markov omogeneo nel
+tempo selezionando un numero di stati latenti da 1 a 3 in base ad uno dei criteri
+d'informazione introdotti nella parte teorica.
+```{r}
+require(LMest)
+#Fisso i 3 differenti livelli di k
+#k identifica il numero di stati latenti da testare
+k1 <- 1
+k2 <- 2
+k3 <- 3
+mod1 <- est_lm_basic(S = S, yv = fr, k=k1,
+                    mod=1,
+                    start = 0)
+mod2 <- est_lm_basic(S = S, yv = fr, k=k2,
+                    mod=1,
+                    start = 0)
+mod3 <- est_lm_basic(S = S, yv = fr, k=k3,
+                    mod=1,
+                    start = 0)
+
+print(mod1)
+print(mod2)
+print(mod3)
+```
+*Il miglior modello latente di Markov secondo il criterio di informazione BIC risulta quello con con 1 stato latente (k=1). Nonostante esso rilevi il BIC minore, conviene stimare il modello con k=2 stati latenti, il quale risulta preferibile in termini di AIC e loglik. Quindi il modello che meglio sembra adattare i dati è quello a 2 stati latenti, con tempi omogenei. Esso stima 7 parametri e impiega circa 709 passi per raggiungere la convergenza.* 
+
+##15.4
+Si descrivano le stime dei parametri del modello scelto al punto precedente in
+relazione al contesto applicativo.
+I parametri da stimare per il modello a 2 stati latenti sono 7.
+
+Inizialmente vediamo le stime per il modello di misura al fine di caratterizzare i gruppi.
+```{r}
+mod2$Psi #modello di misura --> caratterizzazione dei gruppi
+```
+*Il primo gruppo raccoglie per la maggior parte soggetti con malattia lieve, una minor parte di soggetti con malattia moderata e infine una minima parte di soggetti con malattia grave. Il secondo gruppo raccoglie invece per oltre il 90% soggetti equalmente distribuiti tra malattia di grado lieve e malattia di grado moderato, mentre trattiene solo il 7% di soggetti con malattia grave.*
+
+Vediamo ora le stime del modello latente relative alle probabilità iniziali.
+```{r}
+mod2$piv #prob iniziali del modello latente
+```
+*La probabiità di appartenere in partenza al primo gruppo è del 71% contro la probabilità di appartenere in partenza al secondo gruppo del 29%.*
+
+Vediamo ora le stime del modello latente relative alle probabilità di transizione.
+```{r}
+mod2$Pi #prob di transizione del modello latente
+```
+*Poichè il tempo è ritenuto omogeneo, si ottiene la stessa tabella delle probabilità di transizione per tutti i tempi considerati. Dai risultati, leggendo le probabilità per riga, vediamo che chi parte in gruppo 1 ha un'altissima probabilità (95%) di restare in quel gruppo; allo stesso modo chi parte in gruppo 2 ha una altrettanto alta probabilità di rimanere nello stesso gruppo (93%). Questo ci porta a concludere che è molto difficile per un soggetto transitare da un gruppo all'altro, intesa come modificare la propria situazione relativa alla valutazione di malattia.*
+
+
+#Esercizio 19
+
+##19.1
+Si considerino i dati presenti nei files denominati pat1.Rdata e yv1.Rdata. I dati simulati riguardano le configurazioni di risposta e le rispettive frequenze di 500
+giovani donne nella fascia di età compresa tra i 9 e 31 anni le quali sono state sottoposte per 3 occasioni temporali consecutive alla misurazione del livello di minerali presenti nelle ossa. Supponendo che i livelli (0,1,2,3) della variabile siano codificati nel seguente modo: <= 0:00362, (0:0036; 0:0214], (0:0214; 0:0650], (0:0650; 0:2199] i cui livelli sono densità stimate del minerale con DXA. Si illustrino i dati e si commentino.
+Carico i dati e creo una matrice m.
+```{r}
+load("pat1.Rdata")
+load("yv1.Rdata")
+m <- cbind(Ssim,yvmsim)
+df <- as.data.frame(m)
+sort(df$yvmsim, decreasing=T)
+subset(df,yvmsim==31 | yvmsim==29)
+#può essere utile mostrare head e tail per descrivere la matrice
+```
+*I pattern con frequenza più numerosa sono quello che conta 31 soggetti che partono da un livello 2 di presenza di minerale alla prima visita per poi assestarsi alle visite successive al livello 1; parimenti quello che conta 29 soggetti che partono da un livello 3 per poi assestarsi al livello più basso. In generale i pattern più frequenti presentano livelli di minerale in ordine decrescente nel tempo.*
+
+##19.2
+Si consideri un modello latente di Markov per questi dati. Supponendo un modello
+con 4 stati latenti si illustruino le ipotesi del modello.
+Le ipotesi del modello sono 3 da commentare: l'uso di lm, k=4 e mod=1.
+```{r}
+require(LMest)
+k <- 4 #fisso gli stati latenti
+mod <- est_lm_basic(S = Ssim, yv = yvmsim, k=k,
+                    mod=1,
+                    start = 0)
+```
+*Alla luce delle osservazioni, i valori riscontrati del minerale nelle ossa sono misurati con errore da uno strumento di misurazione, perciò assumo che il processo stocastico di interesse sia quello latente. Ecco pechè uso lm invece che mc.*
+*L'ipotesi del modello riguardo al tempo è che è stato assunto con matrice di transizione omogenea nel tempo per parsimonia, perciò si sceglie mod=1 nella formula del modello. Infine sono stati ipotizzati k=4 stati latenti, pari al numero di categorie della variabile risposta.*
+*Il modello raggiunge la convergenza con un numero di iterazioni dell'algoritmo EM pari a 1000.*
+
+
+##19.3
+Si determino i parametri stimati del modello e si riportino le stime con gli opportuni
+commenti anche rispetto alla distribuzione stimata della variabile risposta.
+
+Per prima cosa guardo le informazioni di convergenza
+```{r}
+print(mod)
+```
+*Il modello stima 27 parametri liberi; ha un BIC di 3962 e una loglik di -1897*
+
+Ora guardo le stime dei parametri per commentare il modello di misura.
+```{r}
+summary(mod)
+```
+*La sezione interessante è quella relativa alla parte di misura, cioè la tabella delle conditional response probabilities. Questa tabella mi permette di caratterizzare gli stati latenti della catena. Lo stato latente 1 si caratterizza per chi ha livelli bassi del mineale, lo stato 2 per chi ha prevalentemente livello 1 e 3 perciò rappresenta un mix, lo stato 3 per chi ha livelli moderati, lo stato 4 per chi ha livelli medio-alti.*
+*Osservando le probabilità iniziali, osservo che la probabilità maggiore è per il gruppo con livello 3. In secondo luogo, per il gruppo con livelli alti.*
+*Osservando invece le probabilità di transizione: guardando la diagonale riesco a leggere le probabilità di rimanere nello stesso stato latente, e vedo che in generale le probabilità di rimanere sono moderate; osservando le transizioni noto che per chi parte da livelli medio-alti di minerale ( e quindi è nello stato latente 3 e 4) è più probabile transitare verso livelli più bassi, mentre sono quasi nulle le probabilità di transitare verso livelli maggiori. Quindi la transizione verso destra è molto rara rispetto alla transizione verso sinistra*
+
+
+Cerco ora i parametri del modello di misura, cioè la distribuzione a posteriori degli stati latenti per ogni configurazione e per ogni time occasion.
+PS. Round arrotonda i valori in questo caso alla terza cifra decimale.
+```{r}
+m[1,]
+round(mod$V[1,,],digits = 3)
+```
+*Ad esempio, per la prima configurazione osservata che ha frequenza 14 e livelli di minerale ordinati 1-0-0, il valore osservato al primo tempo (1) ha una probabilità del 62% di appartanere allo stato latente 3, i valori osservati al secondo e terzo tempo (0) hanno prob del 90% di appartenere allo stato latente 1.*
+
+```{r}
+m[12,]
+round(mod$V[12,,],3)
+```
+*Per coloro che hanno pattern di risposta 2-3-0, la massima probabilità a posteriori su ogni tempo è associata agli stati latenti 3,2,1.*
+
+```{r}
+m[44,]
+round(mod$V[44,,],3)
+```
+*In base alle probabilità a posteriori osservo che il pattern latente è pari a 1-1-3.*
+
+##19.4 esempio con aggiunta di covariate
+Si consideri un altro campione composto da altre 145 giovani donne in cui è presente anche la covariata età (si considerino i pattern di risposta individuali del file Scov.Rdata e l'array per la covariata in base ai valori che variano nel tempo nel file Xc.Rdata). Si forniscano le statistiche descrittive dei valori della covariata per le 3 occasioni temporali di interesse. Si stimi il modello latente di Markov valutando
+la covariata rispetto al modello di misura e fissando a 4 il numero di stati latenti.
+Si riportino le stime dei parametri e si commentino i risultati in particolare rispetto alla covariata disponibile.
+
+Carico i dati
+```{r}
+load("Scov.Rdata")
+load("Xc.Rdata")
+#aggr_data(S) #matrice delle frequenze dei pattern
+```
+
+Cerco età media delle donne in ogni tempo
+```{r}
+round(apply(Xc,2,mean),0)
+```
+*L'età media al tempo 1 è di 16 anni, al tempo 2 è di 19 e al tempo 3 è di 22 anni*
+
+Inserimento della covariata nel modello per capire come agisce l'età.
+```{r}
+require(LMest)
+k <- 4
+res4 <- est_lm_cov_manifest(S = S, X=Xc,
+                            k = k,
+                            mod = "LM",
+                            tol = 10^-2)
+```
+
+
+```{r}
+print(res4)
+summary(res4)
+```
+*19 parametri liberi di variare*
+*La parte del modello latente (prob iniziali e matrice di transizione) non cambia rispetto a prima perchè non è influenzata dalle covariate*
+*Cut points sono ordinati, quindi gli stati latenti sono ordinati rispetto alle categorie della var risposta*
+*La covariata è continua, quindi ho un parametro di regressione che rappresenta il cambiamento della var risposta rispetto al cambiamento delle unità covariata: esso ha segno negativo, cioè l'effetto dell'età è negativo sul livello del minerale nelle ossa. Per valutare la magnitudine dell'effetto è meglio esponenziare il coefficiente: exp(-0.1342)=0.87 --> per ogni 3 anni in più d'età (step di passaggio tra un livello e l'altro di età rilevato), il livello di minerali decresce di 0.87. Quindi il tasso di decrescita è di 0.87 unità in meno di minerali per ogni 3 anni in più di anzianità.*
+
+
+#Esercizio 20
+Si considerino i dati presenti nei files denominati Sn.Rdata e Xn.Rdata che riguardano una valutazione soggettiva dello stato di salute di 134 anziani cittadini statunitensi effettuata in 8 interviste consecutive (sottoinsieme di dati riferiti a quelli della libreria LMest denominati data SRHS long riguardanti lo studio Health and Retirement Study).
+Carico i dati
+```{r}
+load("Sn.Rdata")
+load("Xn.Rdata")
+```
+
+##20.1
+Si descrivano le risposte riferite allo stato di salute (che secondo l'Organizzazione Mondiale della Sanità è definito come stato di completo benessere fisico, psichico e sociale e non semplice assenza di malattia) dell'unità con id=16, considerando che le risposte sono state fornite secondo la seguente scala ordinale: 0 (cagionevole), 1
+(discreto), 2 (buono), 3 (molto buono), 4 (eccellente).
+```{r}
+Sn[16,]
+```
+*Il soggetto 16esimo rivela nelle prime tre interviste di possedere uno stato di benessere buono, che muta in discreto nelle successive due interviste, per poi ritornare buono e molto buono; nell'ultima intervista il paziente dichiara nuovamente di sentirsi in uno stato di salute dicreto.*
+
+##20.2
+Si descrivano le covariate disponibili sapendo che la prima covariata è riferita al genere (0 maschio e 1 femmina) e la seconda al titolo di studio (0 senza laurea, 1 con laurea).
+Per esplorare le frequenze relative alle due covariate, seleziono per i 134 soggetti solo la risposta relativa alla prima colonna (alla prima intervista) poichè le variabili sono costanti nel tempo.
+```{r}
+table(Xn[,1,1])
+table(Xn[,1,2])
+```
+*Il dataset contiene 115 uomini e 19 donne; 101 non laureati e 33 laureati*
+
+##20.3
+Si consideri un modello latente di Markov con le covariate che influenzano la parte del modello di misura. Supponendo un modello con 3 stati latenti si illustrino le ipotesi del modello e si stimi il modello.
+```{r}
+require(LMest)
+k <- 3
+res3 <- est_lm_cov_manifest(S = Sn, X=Xn,
+                            k = k,
+                            mod = "LM", output=T)
+#l'opzione output=T è fondamentale per poter calcolare le prob a posteriori
+```
+*Abbiamo 60 iterazioni dell'algoritmo EM.*
+
+```{r}
+print(res3)
+summary(res3)
+#mu coeff stati latenti
+#al coeff stati latenti
+#be coeff regressione sulle covariate
+```
+*Il modello stima 14 parametri liberi del modello. Come output del summary abbiamo: il vettore dei cut-points cioè le intercette MU(y) cioè i punti in cui le categorie della var risposta vengono interrotte; i support points cioè le intercette riferite ai 3 stati latenti: osservandoli vediamo che gli stati sono ordinati in senso crescente, ciuè il primo stato latente raggruppa soggetti con livelli di benessere minore;  il vettore dei parametri di regressione che rappresentano gli odds, il primo riferito al sesso, il secondo alla laurea; le prob iniziali: vediamo che il 50% appartiene inizialmente allo stato latente intermedio, cioè di coloro che hanno benessero medio, mentre il 30% inizialmente si trova allo stato latente di coloro che stanno meglio; la matrice di transizione: guardando la diagonale osserviamo che le prob di rimanere nello stesso stato latente è molto alta per ogni stato.*
+
+##20.4
+Si determino i parametri stimati del modello e si riportino le stime con gli opportuni commenti riguardo in particolare alle stime dei coecienti riferiti alle covariate.
+Spiegazione dei parametri di regressione per le due covariate
+```{r}
+exp(-0.6930)
+exp(1.9844)
+```
+*L'odds delle donne rispetto agli uomini: exp(-0.69)=0.5 --> le donne percepiscono uno stato di salute meno buono nel tempo rispetto ai maschi, quasi la metà. L'odds dei laureati vs non laureati: exp(1.9844) =7.27 --> i laureati percepiscono uno stato di salute molto migliore nel tempo rispetto ai non laureati, circa 7 volte maggiore*
+
+###Ricerca del pattern latente
+Prendo la sottomatrice delle probabilità a posteriori. Assegno in base alla massima probabilità a posteriori per ogni tempo uno stato latente a ciascuna osservazione.
+Soggetto 12.
+```{r}
+#estraggo le prob a posteriori stimate dal modello
+PP <- res3$PRED0  
+#prendo le categorie di risposta osservate per il soggetto 12
+Sn[12,]
+#osservo il percorso latente in base alla massima prob a post
+round(PP[12,,],3)
+```
+*il soggetto 12 ha stato latente, associato in base al modello, 2 per ogni periodo: 2-2-2-2-2-2-2-2   cioè ho ricostruito il suo pattern di risposta in base alle variabili latenti; il pattern osservato era 2-3-1-2-1-3-1-1*
+
+Soggetto 113
+```{r}
+Sn[113,]
+round(PP[113,,],3)
+```
+*Il soggetto 113 ha pattern latente 3-3-3-3-3-3-3-2, cioè cambia solo all'ultimo tempo di osservazione; il pattern osservato era 4-3-2-2-3-4-2-2*
+
+
+###Cosa succede ignorando le covariate?
+Non considerando l'informazione osservata data dai valori assunti dalle covariate sui soggetti.
+Stimo il modello latente di Markov senza covariate e k=3
+```{r}
+#prima devo calcolare le frequenze
+m <- aggr_data(Sn)
+require(LMest)
+k <- 3
+mod3 <- est_lm_basic(S = m$data_dis, yv = m$freq, k=k,
+                    mod=1,
+                    start = 0)
+```
+*118 iterazioni, omogeneo nel tempo, 3 stati latenti*
+
+```{r}
+print(mod3)
+summary(mod3)
+```
+*Osservando l'ultima matrice (prob di y condizionate a U), caratterizzo gli stati latenti: lo stato 1 raccoglie maggiormente chi ha livello di salute peggiore, lo stato 2 intermedio, lo stato 3 migliore*
+*Osservando le prob iniziali e le transizioni, vedo che c'è ancora una tendenza al miglioramento*
+
+###Calcolare il pattern latente per ID 113 basato sulle prob a posteriori
+Cerco il pattern atteso, stimato rispetto al modello
+```{r}
+#osservato
+Sn[113,]
+#pattern latente
+#NB. attenzione che bisogna prima capire sulla matrice aggregata a quale riga corrisponde il pattern osservato
+ind <- which(m$data_dis[,1]==4 & m$data_dis[,2]==3 & m$data_dis[,3]==2  & m$data_dis[,4]==2  & m$data_dis[,5]==3  & m$data_dis[,6]==4  & m$data_dis[,7]==2  & m$data_dis[,8]==2)
+round(mod3$V[ind,,],3)
+```
+*Il pattern stimato per il soggetto 113 (riga 111 della matrice aggregata) è 3-3-2-2-2-2-2-2*
+
+Identifico il soggetto in base ai valori delle covariate non tenute in considerazione
+```{r}
+Xn[113,1,]
+```
+*Il soggetto è femmina non laureata*

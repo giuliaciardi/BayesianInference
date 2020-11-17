@@ -1,0 +1,1687 @@
+---
+title: "Lezioni"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+##In *corsivo* sono i commenti ai risultati.
+
+#20 11 17 Lezione 1: Esempio Bayes' Billard
+##Modello Beta-Binomiale
+Nell'esempio del Bayes'billard delle dispense si suppone ad esempio un numero di palline blu pari a n = 10
+p posizione delle palline blu
+X la variabile casuale che identifica il numero di palline blu che si posizionano prima della pallina gialla. 
+La densità marginale di X è un binomiale, mentre la densità a posteriori p|X = k è una Beta.
+
+
+###Simulo i valori di p, cioè costruisco la prior per il parametro di interesse.
+P è una probabilità perciò ipotizzo una uniforme per simulare sue realizzazioni. Voglio simulare il lancio delle palline tantissime volte.
+```{r}
+#simuliamo delle realizzazioni pseudo-casuali con runif
+#creo quindi il vettore delle probabilità
+nsim <- 10^6
+p <- runif(nsim)
+head(p)
+```
+
+###Si simulano lo stesso numero di valori per la distribuzione condizionata di X|p fissando n.
+Genero da binomiale tramite rbinom, cioè vado a creare una probabilità condizionata X|p. Essa rappresenta la mia verosimiglianza, cioè conto ogni volta quante palline blu ho lanciato prima della gialla nelle fissate n posizioni.
+Genererò un valore di X dato che gli associo un p simulato. Perciò avrò che il primo valore di xcond è stato generato utilizzano il primo elemento di p, il secondo il secondo e così via.
+```{r}
+n <- 10
+xcond <- rbinom(nsim,size = n,prob =  p)
+head(xcond)
+table(xcond)
+```
+*Abbiamo generato realizzazioni da una binomiale, cioè una condizionata da evento precedente che in questo caso erano le realizzazioni pseudo-casuali. il primo elemento di xcond è stato generato utilizzando il primo elemento di p, il secondo con il secondo elemento di p etc*
+
+Per visualizzare faccio istogramma dei valori generati dalla binomiale, ognuno generato in modo uniforme.
+```{r}
+h <- hist(xcond,
+breaks = seq(-.5,n+0.5,1),
+ylim= c(0,100000), col = "pink",
+main = "Distribuzione condizionata di X:  f(X|p)")
+```
+*Vedo che ogni asta è centrata sull'intero, per cui potrebbe essere uniforme discreta. La forma appare quella di una probabilità distribuita uniformemente sui valori osservati.*
+
+Nell'esempio visto a lezione la distribuzione marginale di X e' una distribuzione uniforme, e come da equazione di Bayes P(X=k)=1/n+1= 1/11=0.090909. Calcolando la densità per l'istogramma dovrei ottenere valori che si avvicinato a 0.9
+```{r}
+h$density
+```
+*si nota che la distribuzione è assimilabile a quella di un' uniforme in (0,10) e che le densità sono proporzionali a 1/n+1*
+
+###Distribuzione a posteriori
+La distribuzione a posteriori è una distribuzione Beta(alpha+k, beta +n -k).
+Ponendo alpha = 1 e beta = 1 si ha Beta(4, 8) per k = 3.
+
+Possiamo calcolare la distribuzione a posteriori empiricamente di p dato X=3, cioè per tutti i valori realizzati di X che hanno valore 3 (3 palline blu prima di una gialla)
+```{r}
+#estraggo un vettore che prende solo gli elementi di xcond uguali a 3
+#A3 <- xcond==3
+#creo un sottovettore di p
+#ppost3 <- p[A3]
+ppost3 <- p[xcond==3] 
+length(ppost3)
+```
+
+Istogramma della distribuzione a posteriori, con X=3.
+```{r}
+hist(ppost3, freq = F,
+     xlim = c(0,1),
+     main = "Distribuzione a posteriori di p: f(p|X=3)",
+     col="violet")
+```
+
+
+###Confronto con posterior Beta teorica
+Dato che posso ottenere la stessa distribuzione anche tramite la funzione di R che genera da una vc Beta, assegnati i parametri 4 e 8 per i valori a livello teorico ci si riferisce alla detb.
+```{r}
+#genero realizzazioni dalla vc Beta con parametri di posizione 4 e shape 8
+detb <- rbeta(10^6,4,8)
+hist(ppost3, freq = F, breaks = 200, xlim=c(0,1))
+curve(dbeta(x,4,8),add=T, col="purple", lwd=4)
+```
+*Il confronto fra l'istogramma calcolato empiricamente e la curva di densità teorica appare opprtuno.*
+
+Posizionare nella stessa finestra grafica le distribuzioni a posteriori ppost rispetto ai valori x==4, 5 e 6. Visualizzo la forma delle distribuzioni condizionate.
+```{r}
+ppost4 <- p[xcond==4]  
+ppost5 <- p[xcond==5]  
+ppost6 <- p[xcond==6] 
+
+par(mfrow=c(2,2))
+hist(ppost3, col="pink", breaks = 200, freq = F,xlim=c(0,1))
+hist(ppost4, col="pink", breaks = 200, freq = F,xlim=c(0,1))
+hist(ppost5, col="pink", breaks = 200, freq = F,xlim=c(0,1))
+hist(ppost6, col="pink", breaks = 200, freq = F,xlim=c(0,1))
+```
+*Gli istogrammi differiscono per la posizione del valore medio*
+
+Riporto le funzioni di ripartizione empiriche a confronto.
+```{r}
+plot(ecdf(ppost3), main="Confronto Funzioni di ripartizione")
+plot(ecdf(ppost4),add=T, col="red")
+plot(ecdf(ppost5),add=T, col="blue")
+plot(ecdf(ppost6),add=T, col="lightblue")
+legend(0,0.8,c("Post x==3","Post x==4", "Post x==5", "Post x==6"),
+       col=c("black","red","blue","lightblue"), lty=1)
+```
+*All'aumentare del valore a cui condizioniamo in questo grafico possiamo vedere come cambia la probabilità cumulata.*
+
+#22 11 17 Lezione 3: assegnazione della probabilità a priori
+##Esempio di famiglia coniugata Beta e uso della funzione beta.select
+##Esempio ore di sonno studenti
+
+###Elicitazione
+Supponendo di voler ottenere una stima per la proporzione del numero di ore di sonno in un giorno lavorativo degli studenti del nostro ateneo (ben 32.458 nell'accademico 2015/16) si ipotizza che la distribuzione della proporzione possa essere una distribuzione Beta(a, b).
+Si ipotizza che tale proporzione 0 < p < 1 possa essere ragionevolmente compresa tra 0 e 0.5 (8/24 = 0.3333) e inoltre che (da rilevazioni precedenti) la metà degli studenti dorma fino ad 8 ore, e solo un 10% di essi dorma più di 12 ore. In questo caso è possibile determinare i parametri della distribuzione a priori per la proporzione ad esempio impiegando nel modo seguente la funzione della libreria LearnBayes.
+Se si ritiene ad esempio che 0.3 sia un valore plausibile per la mediana della distribuzione (distribuzione a priori per il parametro di interesse) delle ore di sonno e che il 90-esimo percentile sia pari a circa 0.5 si ricostruiscono i parametri a e b tali che la distribuzione risultante rispetti questi vincoli con la funzione di R
+della libreria learnBayes::beta.select.
+Le quantità di interesse devono essere definite come una lista nel modo seguente per fissare la mediana quantile1 ed il novantesino centile quantile2 della distribuzione a priori.
+
+La funzione beta.select fa una selezione di beta prior dato che si conoscono 2 quantità d'interesse: restituisce i parametri della Beta quando si conoscono 2 quantili d'interesse della distribuzione. Come input vanno specificati i valori di quantile 1 e quantile 2 che risultano come dei vincoli per la selezione della prior.
+I quantili di interesse di questa distribuzione sono quindi la mediana che pongo 0.3 e il 90esimo percentile che pongo 0.5, per elicitazione.
+```{r}
+#install.packages("LearnBayes")
+require(LearnBayes)
+
+quantile1 <- list(p=0.5,x=0.3)
+quantile2 <- list(p=0.9,x=0.5)
+
+beta.select(quantile1,quantile2)
+```
+*Otteniamo shape1=3.26=alpha e shape2=7.19=beta. Perciò f(p) -- Beta(3.26, 7.19).*
+
+Calcolo la proporzione media attesa: a /b+a
+```{r}
+3.26/(3.26+7.19)
+```
+
+Disegno la densità della distribuzione a priori per il paremtro.
+```{r}
+a <- 3.26
+b <- 7.19
+curve(dbeta(x,a,b),col="red",
+      main="Densità Prior Beta(3.26,7.19)",
+      from = 0, to = 1, lwd=3, lty=3, ylab="Densità")
+```
+*Ha una coda più pesante a destra. Essendo la beta una distribuzione molto flessibile, la sua forma dipende molto dai parametri e può variare molto.*
+
+Generiamo 1000 realizzazioni dalla prior Beta(3.26,7.19) e visualizziamo la forma della distribuzione.
+```{r}
+x <- rbeta(1000,a,b)
+hist(x,col="black", freq=F, breaks = 200)
+```
+
+Disegniamo la funzione di ripartizione empirica evidenziano la mediana e il 90esimo percentile della distribuzione. I due quantili d'interesse sui dati generati dovrebbero essere molto simili a quelli supposti in partenza.
+```{r}
+qq <- quantile(x,c(0.5,0.9)); qq
+```
+*Effettivamente sono 0.3 e 0.5 come posto a priori. La generazione è esatta.*
+
+```{r}
+plot(ecdf(x), col="hotpink", do.point=F,
+     main="Funzione di ripartizione empirica prior")
+abline(h=c(0.5,0.9), col=c("red","green"))
+abline(v=c(qq[1],qq[2]),col=c("red","green"), lty=3)
+legend(0.6,0.8,c("Mediana","90esimo perc"),
+       col=c("red","green"), lty=1, cex = 0.7)
+```
+*Come interpreto i valori? Il 50% degli studenti dorme almeno fino a 7 ore e quindi meno di 8 ore (0,3 che è pari a 7/24), il 90% degli studenti dorme fino a 12 ore e quindi meno di 12 ore. QUesta interpretazione è realistica.*
+
+In media mi aspetto che siano 7 ore/notte. 7/24
+```{r}
+7/24
+```
+*A priori in base al mio giudizio fisso il valore medio di ore dormite pari a 7,tale per cui ho una proporzione attesa pari a 0.3, valore simile al valore atteso della prior (0.31)*
+
+###Osservazioni
+Supponendo di utilizzare una recente intervista effettuata su un campione di 27 studenti di cui 11 dichiarano di aver dormito fino a 8 ore la notte precedente, nel seguito si utilizza s (successi) per indicare il numero di coloro che dichiarano di aver dormito fino a 8 ore e f = (n - s) (insuccessi) .
+Dato che si tratta di una famiglia coniugata la distribuzione a posteriori per il parametro è ancora una distribuzione Beta, i cui parametri sono dati da quelli della prior e dal numero di successi campionari. Nel seguito  si disegnano le funzioni di densità: prior, verosimiglianza e posterior
+
+Fisso il numero di successi s, ovvero la numerosità complessiva che può assumere l'evento successo a priori, cioè sulla base della conoscenza fornita dalle osservazioni.
+```{r}
+s <- 11
+f <- 27-11 #16
+```
+
+###Disegno verosimiglianza
+Disegno la distribuzione binomiale considerando i dati osservati. Essa è uguale alla beta di parametri a e b.
+```{r}
+curve(dbinom(x,size = 27,prob = 11/27), xlim = c(0,50),
+      col="royalblue", lwd=3,lty=3)
+```
+
+Confronto la prior, la curva di verosimiglianza  e la distribuzione a posteriori ottenuta applicando la Bayes' rule.
+```{r}
+#a priori fissata di parametri a e b
+curve(dbeta(x,a,b),col="red",   ylim=c(0,6),
+      ylab="Density",      xlab = "p",
+      from = 0, to = 1, lwd=3, lty=3)
+
+#a posteriori è una Beta (a+s,b+f) cioè (a+k,b+n-k)
+#a + successi, b+ insuccessi
+curve(dbeta(x,a+s,b+f),col="orange", lwd=2, lty=3, add=T)
+
+#verosimiglianza è una Beta(k+1,n-k+1)   (s+1, f+1)
+curve(dbeta(x,s+1,f+1),col="blue", lwd=2, lty=4, add=T)
+
+legend(0.6,5,c("Prior","Posterior","Verosimiglianza"),
+       col=c("red","orange","blue"), lty=1, cex = 0.8)
+```
+*Si nota che la distribuzione di riferimento per l'inferenza (a posteriori) è un compromesso tra il ragionamento iniziale che ha portato ad ipotizzare certi valori per il parametro (prior) e le rilevazioni effettuate (verosimiglianza) e presenta una variabilità di ridotta rispetto alla distrubuzione iniziale del parametro.*
+
+#29 11 17 Lezione 4
+##Definire la matrice di transizione e passeggiata aleatoria.
+
+La matrice richiede un vettore in cui mettere gli elementi, il numero di righe e il numero di colonne. Le matrici stocastiche sono matrici quadrate, ad esempio 3x3 in cui mettiamo proboabilità condizionate a somma 1 per riga.
+```{r}
+vett1 <- c(1/4,1/2,1/4)
+vett2 <- c(0,1/2,1/2)
+vett3 <- c(1/8,3/4,1/8)
+A <- matrix(c(vett1,vett2,vett3),nrow = 3,ncol = 3,byrow = T)
+A
+
+#verifico somma a 1 delle righe: MATRICE STOCASTICA PER RIGA
+apply(A,1,sum)
+```
+*Verificando che le righe sommano a 1, abbiamo verificato che A è una matrice stocastica. Come la leggo: dato che parto in stato 1, la prob di arrivare in stato 1 è di 0.25; dato che parto in stato 1, la prob di arrivare in stato 2 è di 0.5; dato che parto in stato 1, la prov di arrivare in stato 3 è di 0.25; dato che parto in  stato 2, la prob di arrivare in stato 1 è di 0; dato che parto in stato 2, la prob di arrivare in stato 2 è di 0.5; ecc...*
+
+Operazioni matriciali: %*% esegue il prodotto tra matrici
+AxA mi dà una matrice di dimensioni uguali ad A
+Anche AXAXA mi dà matrice quadrata di stesso ordine.
+```{r}
+A2 <- A%*%A
+A2
+apply(A2,1,sum)
+A3 <- A2%*%A
+A3
+apply(A3,1,sum)
+```
+
+###Matrice di equilibrio: tutte le probabilità condizionate per riga sono uguali
+I valori della distribuzione di equilibrio del processo si ottengono aumentando l'ordine di A, cioè per n elevato.
+Per cercare la distribuzione di equilibrio vado avanti con l'ordine, fino a ordine 10 (A10). Creo la passeggiata aleatoria.
+```{r}
+A4 <- A3%*%A
+A5 <- A4%*%A
+A6 <- A5%*%A
+A7 <- A6%*%A
+A8 <- A7%*%A
+A9 <- A8%*%A
+A10 <- A9%*%A
+A10
+apply(A10,1,sum)
+```
+*Aumentando l'ordine n vedo che tendo ad ottenere la stessa distribuzione per riga, cioè che la matrice stocastica A tende ad avere stessi valori per ogni riga. Lo verifico tramite scomposizione in autovettore e autovalori.*
+
+#04 12 17 Lezione 5: Distribuzione di equilibrio e scomposizione spettrale in autovettori e autovalori
+
+La distribuzione stazionaria si ricava anche considerando gli autovalori. Prima si traspone la matrice e poi si derminano gli autovettori e agli autovalori. La funzione base::eigen permette di estrarre i valori.
+Miro ad ottenere la matrice di equilibrio.
+Riprendo la matrice A usata a lezione 4.
+```{r}
+vett1 <- c(1/4,1/2,1/4)
+vett2 <- c(0,1/2,1/2)
+vett3 <- c(1/8,3/4,1/8)
+A <- matrix(c(vett1,vett2,vett3),nrow = 3,ncol = 3,byrow = T)
+```
+
+###Autovettori e autovalori di A
+Estraggo gli autovalori e gli autovettori di questa matrice, tramite la funzione che restituisce la scomposizione spettrale della matrice stocastica A --> "eigen".
+Per la distribuzione di equilibrio sono di interesse solo gli autovettori corrispondenti all'autovalore massimo (pari a 1) che devono essere normalizzati in modo da ottenere 1 per loro somma.
+
+Trasposizione di A: inverto righe e colonne all'interno della funzione eigen.
+```{r}
+vA <- eigen(t(A))
+vA
+```
+*Devo prendere l'autovettore corrispondente all'autovalore più alto. In questo caso identifico la prima colonna.*
+
+Lo estraggo
+```{r}
+vA$vectors[,1]
+```
+
+###Normalizzazione degli autovettori: somma a 1
+La matrice di equilibrio la ottengo usando gli autovettori normalizzati.
+```{r}
+SvA <- sum(vA$vectors[,1])
+vA$vectors[,1]/SvA
+sum(vA$vectors[,1]/SvA)
+```
+*si ottengo le probabilità che definiscono la distribuzione stazionaria di A. SOno probabilità "limite"che permettono di valutare dove tende il sistema asintoticamente, cioè per comprendere il carattere del sistema sul lungo periodo.*
+
+Confrontando le due Distribuzioni di equilibrio:
+```{r}
+A10
+vA$vectors[,1]/SvA
+```
+*Quella ottenuta per concatenamento e quella ottenuta tramite autovettori normalizzati sono uguali.*
+
+##Random Walk: passeggiata casuale a tempo discreto
+Abbiamo 15 stati possibili. SUlla diagonale ho tutti 0 perchè non posso mai rimanere sullo stesso stato, posso solo andare negli stati vicini tramite +1 e -1.
+Si definisce la probabilità costante p per incrementare o decrementare la posizione rispetto ad uno stato e stabilendo uno stato di inizio si simula un certo numero possibile di stati che il processo può assumere. Si noti che come mostrato nella matrice di transizione della parte delle dispense lo stato 0 e lo stato 15 sono stati assorbenti.
+Nel seguente ciclo iterativo si definiscono i costrutti condizionali if per gli stati assorbenti e else per quelli transienti.
+La partenza è posizionata sullo stato 5.
+```{r}
+ini <- 0 #valore dello stato iniziale: assorbente
+fine <- 15  #valore dello stato finale: assorbente 
+p <- 0.8  #prob di transizione
+nsim <- 150 #numero di transizioni
+x <- rep(ini,nsim)  #vettore vuoto che conterrà gli stati del rw
+
+#devo inizializzare il processo rispetto ad un valore del passo 1
+x[1] <- 5
+
+
+for (i in 2:nsim){  #il ciclo parte dal passo 2
+ #ora devo creare le due condizioni possibili
+  if(x[i-1]==ini || x[i-1]==fine) { 
+    x[i] <- x[i-1]
+    #stati assorbenti:lo stato al passo i
+    #deve essere posto uguale allo stato precedente quindi
+    #sto creando uno stop: non esco più
+  }
+  else
+  {
+    x[i] <- x[i-1]+ sample(c(1,-1),1,prob = c(p,1-p))
+    #riempio l'elemento alla posizione i-esima
+    #con quello che ho al passo precedente più un valore di W che è       Bernoulli con valore in 1 e -1
+  }
+    
+}
+x
+```
+*Per campionare un valore (1) oppure (-1) si utilizza la funzione sample in base alla probabilità definita di spostarsi in una direzione o in un'altra direzione. Dalle realizzazioni notiamo che partendo dalla stato 5 si precipita abbastanza velocemente allo stato 15 essendo la probabilità di passaggio pari a 0.8.*
+
+Quanti sono i passi  che occorrono per arrivare allo stato assorbente?
+```{r}
+sum(x!=15)
+sum(x!=15)/nsim
+```
+*Su 150 simulazioni dello stato, ho impiegato 10 passi per raggiungere lo stato assorbente 15. Per cui la freq relativa degli stati differenti da 15 è del 7%*
+
+Cosa succede cambiando p. Tengo p=0.5
+```{r}
+p1 <- 0.5
+for (i in 2:nsim){  #il ciclo parte dal passo 2
+ #ora devo creare le due condizioni possibili
+  if(x[i-1]==ini || x[i-1]==fine)   
+    { 
+    x[i] <- x[i-1]
+    #stati assorbenti da cui non devo più uscire, perciò lo stato al passo i
+    #deve essere posto uguale allo stato precedente quindi
+    #sto creando uno stop: non esco più
+  }
+  else
+  {
+    x[i] <- x[i-1]+ sample(c(1,-1),1,prob = c(p1,1-p1))
+    #riempio l'elemento alla posizione i-esima
+    #con quello che ho al passo precedente più un valore di W che è Bernoulli
+    #in +1 e -1
+  }
+    
+  
+}
+x
+```
+
+```{r}
+sum(x!=0)
+sum(x!=0)/nsim
+```
+*Impiego tot passi per arrivare ad uno dei due stati assorbenti, cioè il tot% degli stati simulati*
+*Arrivo più facilmente a 0 rispetto che a 15, nonostante le prob identiche per la direzione del passo, perchè lo stato iniziale è più vicino allo 0.*
+
+Cosa succede se lo stato di partenza è 15 e p=0.5.
+```{r}
+p1 <- 0.5
+x[1] <- 14
+for (i in 2:nsim){  #il ciclo parte dal passo 2
+ #ora devo creare le due condizioni possibili
+  if(x[i-1]==ini || x[i-1]==fine)   
+    { 
+    x[i] <- x[i-1]
+    #stati assorbenti da cui non devo più uscire, perciò lo stato al passo i
+    #deve essere posto uguale allo stato precedente quindi
+    #sto creando uno stop: non esco più
+  }
+  else
+  {
+    x[i] <- x[i-1]+ sample(c(1,-1),1,prob = c(p1,1-p1))
+    #riempio l'elemento alla posizione i-esima
+    #con quello che ho al passo precedente più un valore di W che è Bernoulli
+    #in +1 e -1
+  }
+}
+x
+```
+*Partendo molto vicino ad uno degli stati assorbenti, il processo va quasi sempre su quello stato assorbente.*
+
+
+#Stima di un modello di transizione di Markov: Esempio datadrug.
+Set of functions to fit latent Markov models.
+In particolare useremo la funzione est_mc_basic.
+```{r}
+require(LMest)
+```
+
+Uso i dati data_drug.
+Longitudinal dataset about marijuana consumption measured by ordinal variables with 3 categories with increasing levels of consumption.
+51 observations on the following 6 variables:reported drug use at the 1st occasion,reported drug use at the 2nd occasion,reported drug use at the 3rd occasion,reported drug use at the 4th occasion,reported drug use at the 5th occasion,frequency of the response configuration.
+Le categorie sono:
+1 --> mai nell'anno precedente
+2 --> solo 1 volta al mese nell'anno precedente
+3 --> più di una volta al mese
+```{r}
+data("data_drug")
+d <- data_drug
+head(d)
+sum(d$V6)
+```
+*Ho 51 pattern possibili con frequenza non nulla. Ho 237 soggetti totali rispondenti, di cui ho 111 soggetti che non hanno consumato mai. Ho 18 soggetti che hanno consumato solo una volta al mese nell'ultimo anno. Ho 7 soggetti che hanno consumato più di una volta al mese solo nell'ultimo anno. ecc...*
+*Non ho valori mancanti, quindi ho sempre le risposte per ogni anno per ogni soggetto*
+
+###Costruzione del modello di transizione
+Il modello richiede la matrice dei pattern e il vettore delle frequenze. S identifica la matrice dei pattern di risposta, mentre yv identifica il vettore delle freq.
+S deve avere come valore iniziale delle categorie 0; la matrice che abbiamo noi inizia da 1, per cui dobbiamo apportare modifiche scalando di 1 tutti i valori presenti in tutte le righe.
+```{r}
+S <- d[,1:5]-1 #tutte le righe con valori categoriali scalate di 1
+S <- as.matrix(S)
+yv <- d[,6]
+```
+
+###Stima dei parametri tramite est_mc_basic
+```{r}
+mod1 <- est_mc_basic(S,yv,mod=1)
+#mod=1 quando le matrici sono omogenee nel tempo
+summary(mod1)
+```
+*Otteniamo le prob iniziali di trovarsi in uno stato e la matrice di transizione.*
+*Lo stato più probabile è 0: mai uso di cannabis. Usando le info campionarie (cioè una sequenza temporale di risposte) ottengo le prob di transizione.*
+
+
+#05 12 17 Lezione 6: Matrice per diverse traiettorie di un Random Walk
+Costruisco una matrice XX che racchiuda 150 percorsi per diverse traiettorie del RW.
+Righe XX = numero di percorsi simulati (nsim)
+Colonne XX = numero di traiettorie che vogliamo simulare
+```{r}
+ini <- 0 #valore dello stato iniziale
+fine <- 15  #valore dello stato finale
+p <- 0.5  #prob di transizione
+nsim <- 150 #numero di percorsi
+x <- rep(ini,nsim)
+x[1] <- 5
+
+ttr <- 30 #traiettorie diverse che vogliamo testare
+
+#predispongo la matrice vuota che si riempirà col for
+XX <- matrix(0,nrow = nsim,ncol = ttr)
+```
+
+
+Creo il ciclo for, di cui uno esterno per ciascuna traiettoria che voglio simulare e che dovrà riempire la matrice XX.
+```{r}
+for(j in 1:ttr){
+for (i in 2:nsim){  
+  if(x[i-1]==ini || x[i-1]==fine)   
+    { 
+    x[i] <- x[i-1]
+    }
+  else
+    {
+    x[i] <- x[i-1]+ sample(c(1,-1),1,prob = c(p,1-p))
+    }
+    
+}
+  
+ XX[,j] <- x
+   
+}
+```
+
+###Matplot
+Visualizzo le 30 traiettorie simulate in un grafico a linee.
+```{r}
+matplot(XX,type = "l", main="Random Walk con stato iniziale in 5",
+        ylab = "Traiettorie")
+```
+*Posso osservare le differenze nelle traiettorie generate e vedere le differenti velocità con cui raggiungono i due stati assorbenti.*
+
+###Stato iniziale in 3 e in 10.
+Rieseguo il RW cambiando lo stato iniziale.
+```{r}
+#Prima variazione: stato iniziale in 3
+x1 <- rep(ini,nsim)
+x1[1] <- 3
+XX1 <- matrix(0,nrow = nsim,ncol = ttr)
+for(j in 1:ttr){
+for (i in 2:nsim){  
+  if(x1[i-1]==ini || x1[i-1]==fine)   
+    { 
+    x1[i] <- x1[i-1]
+    }
+  else
+    {
+    x1[i] <- x1[i-1]+ sample(c(1,-1),1,prob = c(p,1-p))
+    }
+    
+}
+  
+ XX1[,j] <- x1
+   
+}
+
+#seconda variazione: stato iniziale in 10
+x2 <- rep(ini,nsim)
+x2[1] <- 10
+XX2 <- matrix(0,nrow = nsim,ncol = ttr)
+for(j in 1:ttr){
+for (i in 2:nsim){  
+  if(x2[i-1]==ini || x2[i-1]==fine)   
+    { 
+    x2[i] <- x2[i-1]
+    }
+  else
+    {
+    x2[i] <- x2[i-1]+ sample(c(1,-1),1,prob = c(p,1-p))
+    }
+    
+}
+  
+ XX2[,j] <- x2
+   
+}
+```
+
+Grafici di confronto per gli stati iniziali differenti.
+```{r}
+par(mfrow=c(3,1))
+matplot(XX1,type = "l", main="30 Random Walk con inizio in 3 e p=0.5")
+matplot(XX,type = "l", main= "30 Random Walk con inizio in 5 e p=0.5")
+matplot(XX2,type = "l", main="30 Random Walk con inizio in 10 e p=0.5")
+
+```
+*Come influisce lo stato iniziale? Se lo stato iniziale è vicino ad uno dei due stati assorbenti, la maggior parte delle traiettorie terminerà in quello stato assorbente. Incide quindi il punto di partenza, anche se la probabilità di incremento/decremento è la stessa e cioè 0.5*
+
+###p=0.2
+Rifaccio la stessa cosa cambiando la probabilità di incremento/decremento: p=0.2
+```{r}
+p1 <- 0.2
+
+#stato iniziale 5
+for(j in 1:ttr){
+for (i in 2:nsim){  
+  if(x[i-1]==ini || x[i-1]==fine)   
+    { 
+    x[i] <- x[i-1]
+    }
+  else
+    {
+    x[i] <- x[i-1]+ sample(c(1,-1),1,prob = c(p1,1-p1))
+    }
+}
+ XX[,j] <- x
+}
+
+#stato iniziale 3
+for(j in 1:ttr){
+for (i in 2:nsim){  
+  if(x1[i-1]==ini || x1[i-1]==fine)   
+    { 
+    x1[i] <- x1[i-1]
+    }
+  else
+    {
+    x1[i] <- x1[i-1]+ sample(c(1,-1),1,prob = c(p1,1-p1))
+    }
+    
+}
+ XX1[,j] <- x1
+}
+
+#stato iniziale 10
+for(j in 1:ttr){
+for (i in 2:nsim){  
+  if(x2[i-1]==ini || x2[i-1]==fine)   
+    { 
+    x2[i] <- x2[i-1]
+    }
+  else
+    {
+    x2[i] <- x2[i-1]+ sample(c(1,-1),1,prob = c(p1,1-p1))
+    }
+    
+}
+   XX2[,j] <- x2
+}
+```
+
+Grafici:
+```{r}
+par(mfrow=c(3,1))
+matplot(XX1,type = "l", main="30 Random Walk con inizio in 3 e p=0.2")
+matplot(XX,type = "l", main= "30 Random Walk con inizio in 5 e p=0.2")
+matplot(XX2,type = "l", main="30 Random Walk con inizio in 10 e p=0.2")
+```
+*Nessuna traiettoria arriva allo stato assorbente 15, perchè la probabilità alla direzione +1 è molto bassa. Inoltre nessuna traiettoria non termina entro i 150 step. In media ci vogliono circa 30 step per terminare la traiettoria*
+
+###p=0.8
+Rifaccio la stessa cosa cambiando la probabilità di incremento/decremento: p=0.8
+```{r}
+p2 <- 0.8
+
+#stato iniziale 5
+for(j in 1:ttr){
+for (i in 2:nsim){  
+  if(x[i-1]==ini || x[i-1]==fine)   
+    { 
+    x[i] <- x[i-1]
+    }
+  else
+    {
+    x[i] <- x[i-1]+ sample(c(1,-1),1,prob = c(p2,1-p2))
+    }
+}
+ XX[,j] <- x
+}
+
+#stato iniziale 3
+for(j in 1:ttr){
+for (i in 2:nsim){  
+  if(x1[i-1]==ini || x1[i-1]==fine)   
+    { 
+    x1[i] <- x1[i-1]
+    }
+  else
+    {
+    x1[i] <- x1[i-1]+ sample(c(1,-1),1,prob = c(p2,1-p2))
+    }
+    
+}
+ XX1[,j] <- x1
+}
+
+#stato iniziale 10
+for(j in 1:ttr){
+for (i in 2:nsim){  
+  if(x2[i-1]==ini || x2[i-1]==fine)   
+    { 
+    x2[i] <- x2[i-1]
+    }
+  else
+    {
+    x2[i] <- x2[i-1]+ sample(c(1,-1),1,prob = c(p2,1-p2))
+    }
+    
+}
+   XX2[,j] <- x2
+}
+```
+
+Grafici:
+```{r}
+par(mfrow=c(3,1))
+matplot(XX1,type = "l", main="30 Random Walk con inizio in 3 e p=0.8")
+matplot(XX,type = "l", main= "30 Random Walk con inizio in 5 e p=0.8")
+matplot(XX2,type = "l", main="30 Random Walk con inizio in 10 e p=0.8")
+```
+*Simmetricamente al caso precedente, con una p=0.8 tutte le traiettorie finiscono nello stato assorbente 15. Nessuna traiettoria non termina entro i 150 step. In media anche in questo caso ci vogliono circa 30 step per terminare la passeggiata.*
+
+##Stima di un modello di transizione. Esempio datadr.
+I dati presenti nel dataset datadr.Rdata (dati simulati) riguardano una survey. Sono dati longitudinali in cui le unità statistiche sono
+disposte per riga mentre per colonna vi sono i periodi temporali e ogni riga rappresenta la categoria di risposta della variabile consumo di cannabis per ogni anno della survey.
+
+Carico i dati.
+La matrice delle configurazioni di risposta (datad) contiene i dati originali con i pattern per ogni individuo. Ho 1000 individui. Le colonne definiscono i tempi di osservazione: in questo caso 4 tempi.
+Il contesto è ancora l'uso di cannabis:
+0 nessun uso nell'anno precedente
+1 uso moderato nell'anno precedente
+2 uso abituale nell'anno precedente.
+```{r}
+load("datadr.Rdata")
+dim(datad)
+head(datad)
+```
+*Si nota che ad esempio il primo individuo era un consumatore occasionale (categoria 1) alla prima survey, poi non più utilizzatore (categoria 0) alla seconda survey, poi era consumatore abituale (categoria 2) alla terza survey e poi non era più consumatore (categoria 0) alla quarta survey.*
+
+###E' possibile ottenere la tabella di frequenze di risposta osservate per ogni anno.
+```{r}
+table(datad[,1])
+table(datad[,2])
+table(datad[,3])
+table(datad[,4])
+```
+*Dalla tabella si nota che le frequenze assolute dei consumatori saltuari in particolare sono molto diverse nei vari anni.*
+
+In alternativa posso usare la funzione apply sulle colonne.
+```{r}
+apply(datad,2,FUN =table)
+```
+
+###Determinare i pattern di risposta più frequenti.
+Sconf è la matrice che contiene tutti i pattern di risposta differenti trovati nei 1000. Sono 56 configurazioni differenti.
+Il vettore yvconf contiene le frequenze per le 56 differenti configurazioni.
+```{r}
+XX <- cbind(Sconf,yvconf)
+yvconf
+```
+ 
+Estraggo la posizione e in seguito la sequenza più frequente
+```{r}
+pmax <- which(yvconf==93)  #7
+Sconf[pmax,]
+```
+*La maggior parte dei rispondenti,93 soggetti, ha fatto uso abituale negli ultimi 3 periodi*
+
+###Cercare il pattern 0 1 2 2
+```{r}
+#Subsetting both rows and columns of a dataframe
+XX <- as.data.frame(XX)
+subset(XX, V1==0 & V2==1 & V3==2 & V4==2, select = c(V1: yvconf))
+```
+
+###Cercare il pattern 0 0 0 0
+```{r}
+subset(XX, V1==0 & V2==0 & V3==0 & V4==0, select = c(V1: yvconf))
+```
+*C'è solo un soggetto, il 51, che rimane non consumatore per tutto il tempo della survey.*
+
+###Trovare tutti i pattern in cui c'è solo un soggetto
+```{r}
+subset(XX, yvconf==1, select = c(V1: V4))
+```
+
+
+###Stima dei parametri di input del modello di transizione
+La tipologia di transizione è omogenea rispetto al tempo(mod=1).
+L'omogeneità nel tempo permette di stimare il modello più parsimonioso.
+Il numero di parametri è pari a 8: 2 (c-1) prob iniziali (l'ultima è per complemento a 1) e le 6 (c*c-1) prob di transizione. La matrice ci mostra come ci si muove tra le categorie ai vari tempi. Nella formula dei parametri non mettiamo T-1 perchè abbiamo stimato con tempo omogeneo.
+
+Il modello si stima con la funzione seguente presente nella libreria LMest::est_mc_basic che richiede le configurazioni di risposta e le rispettive frequenze e l'ipotesi sulle probabilità di transizione. L'opzione mod=1 specifica l'ipotesi di catena di Markov omogenea nel tempo.
+```{r}
+#install.packages("LMest")
+require(LMest)
+mod <- est_mc_basic(S = Sconf, mod = 1,yv = yvconf)
+summary(mod)
+```
+*All'inizio della survey si nota che i non consumatori di cannabis sono circa la metà. Durante il secondo, terzo e quarto anno dell'indagine i non consumatori hanno una probabilità piuttosto bassa (0.11). All'inizio della survey circa il 30% sono consumatori occasionali. Nei sondaggi successivi al primo i consumatori occasionali mostrano bassa persistenza in questo stato. All'inizio della survey circa il 19% sono consumatori abituali. Coloro che dichiarano di utilizzare la cannabis in modo continuativo hanno alta probabilità (0.5) di farne un utilizzo continuativo anche negli anni consecutivi al primo sondaggio.*
+*Lo stato più persistente è relativo a quello di chi fa uso abituale, infatti il 50% di coloro che partono in categoria 2 rimane in categoria 2 (0.5016). Per coloro che partono da un uso sporadico, è più probabile che finiscano ad essere consumatori usuali (0.5737). Soprattutto chi non fa uso, ha il 77.25% di probabilità di finire a fare uso quotidiano. Tra chi non fa uso e chi fa uso sporadico, la prob di rimanere in quella categoria durante tutto il periodo studiato è molto bassa e si aggira attorno al 11 e 14%. Le probabilità nella diagonale sono le probabilità di persistenza, cioè di rimanere nello stesso stato per tutto il periodo.*
+*Se ipotizziamo che il tempo non sia omogeneo, cioè che a un certo punto è ipotizzabile un cambiamento significativo, è meglio stimare un modello per tutti i tempi per il quale si avranno più parametri da stimare.*
+
+
+###Diatribuzione congiunta delle variabili risposta
+Estraggo la distribuzione congiunta della variabile risposta per ogni categoria su ogni tempo, ottenuta dalle prob iniziali stimate * prob di transizione. Si calcola in base ai parametri stimati dal modello.
+```{r}
+mod$Fy
+```
+*La prima riga identifica le prob iniziali di ogni stato. Questa tabella va letta in verticale, per colonna. Leggendo la prima colonna, dimostra che la progressione temporale sulla categoria 1 è decrescente e il salto principale viene fatto tra il primo e secondo tempo. Dal 2 al 4 tempo in tutte le categoria non si notano grosse differenze perchè c'è una tendenza leggera a decrescere. Il passaggio principale si ha per tutte le categoria dal primo al secondo tempo.*
+*La distribuzione congiunta delle variabili risposta permette di evidenziare che la probabilità riferita ai non consumatori decresce nel tempo mentre qualla dei consumatori occasionali cresce così come quella dei consumatori abituali che cresce notevolmente dalla prima alla seconda survey e poi descresce leggermente durante la terza o quarta survey, rimanendo tuttavia la più elevata tra quelle stimate.*
+
+
+#06 12 17 lez 7: Ancora esercizi sul dataset datadrug
+Lo richiamo
+```{r}
+data("data_drug")
+yv <- data_drug[,6]
+S <- data_drug[,1:5]-1 #tutte le righe con valori categoriali scalate di 1
+S1 <- data.frame(S,yv)
+```
+
+
+###Cercare il pattern 0 1 2 2 2 e la relativa frequenza
+```{r}
+subset(S1, V1==0 & V2==1 & V3==2 & V4==2 & V5==2, select = c(V1: yv))
+```
+*5 persone hanno questo specifico pattern*
+
+###Cercare i pattern con solo 1 frequenza
+```{r}
+subset(S1, yv==1, select = c(V1: V5))
+```
+*Ci sono 27 pattern con frequenza pari a 1*
+
+###Cercare persone che non hanno mai usato cannabis
+```{r}
+subset(S1, V1==0 & V2==0 & V3==0 & V4==0 & V5==0, select = c(V1: yv))
+```
+*111 persone non fanno mai uso di cannabis durante il periodo*
+
+###Ottenere le probabilità stimate congiunte per la risposta Y.
+```{r}
+S2 <- as.matrix(S)
+mod1 <- est_mc_basic(S2,yv,mod=1)
+mod1$Fy
+```
+*La prima riga identifica le probabilità iniziali. Passando alla lettura per colonna, abbiamo che per la categoria 0 si ha un decremento pressochè costante, man mano che le persone non usano cannabis diminuiscono nei 5 anni della survey. Nella categoria 1 c'è un salto al primo periodo e poi continua con un leggero incremento costante. Per la categoria 2 si ha  un andamento caratterizzato da salti di incremento più marcati su tutti i periodi.*
+
+Estraggo la matrice delle probabilità di transizione per ogni tempo.
+Attenzione che se ho messo il modello a tempi omogenei, avrò matrici uguali per tutti i tempi. Se avevo mod=0 (cioè a tempo non omogeneo) avrei avuto matrici diverse per ogni tempo, visto che ipotizzo che ci sia evoluzione temporale.
+```{r}
+mod1$Pi
+```
+
+###Modello con tempo non omogeneo   (mod=0)
+```{r}
+mod2 <- est_mc_basic(S2,yv,mod=0)
+mod1
+mod2
+```
+*confrontando i due modelli in base al BIC, scelgo quello con Bic minore. Risulta migliore quello omogeneo con solo 8 parametri, rispetto a quello con 26 parametri.* 
+
+
+#11 12 17 lez 8: Modello latente di Markov: esempio soddisfazione  RLMS
+I dati si riferiscono alle risposte ad una domanda del questionario rivolto ai maggiorenni in un'indagine russa (Russian Longutudinal Monitoring Survey) circa il livello di soddisfazione riscontrato rispetto al lavoro principale. Si tratta di risposte fornite da 1718 persone intervistate per 7 anni consecutivi dal 2008 al 2014.
+Nel questionario il livello di soddisfazione complessivo doveva essere espresso su una scala da 1 a 5 con: 1 completamente soddisfatto, 2 abbastanza soddifatto, 3 nè soddisfatto nè insoddisfatto, 4 non molto soddisfatto, 5 particolarmente insoddisfatto.
+
+Carico i dati.
+Longitudinal dataset deriving from the Russia Longitudinal Monitoring Survey (RLMS) about job satisfaction measured by an ordinal variable with 5 categories.
+Le 7 colonne riportano job satisfaction at seven occasions. Soddisfazione sul primo lavoro per 1718 soggetti.
+Livelli di soddisfazione: 1 completamente soddisfatto, 5 nessuna soddisfazione.
+Periodo dal 2008 al 2014. 7 tempi.
+```{r}
+library(LMest)
+data("RLMSdat")
+head(RLMSdat)
+```
+*I dati mostrano che il pattern di risposta del primo individuio oscilla tra abbastanza soddisfatto e molto soddisfatto e che solo 2 individui (id 3 e id 6) nei primi 6 si dichiarano non molto soddisfatti negli anni 1999, 2000 e 2013.*
+
+###Ottenere le frequenze per tutti i possibili pattern osservati
+La funzione aggr_data genera la matrice con le frequenze delle configurazioni di risposta. La funzione agg_data restituisce la matrice S dei pattern e il vettore delle rispettive frequenze.
+```{r}
+out <- aggr_data(RLMSdat)
+yv <- out$freq  #vettore delle frequenze osservate
+S <- out$data_dis #matrice delle conf di risposta
+m <- cbind(out$data_dis, yv)
+head(S)
+```
+*S rappresenta la matrice delle configurazioni di riposta rispetto ai 7 anni della survey (dato che viene tolto 5 ad ogni elemento: la codifica 0 indica assulutamente insoddisfatto mentre 4 indica completamente insoddisfatto). Il vettore yv indica le corrispondenti numerosità osservate la cui somma fornisce il numero totale delle unità. Si nota che ci sono 14 individui che prima si dichiarano nè soddisfatti nè insoddisfatti e poi abbastanza soddisfatti.*
+
+
+###Cerco il massimo e la configurazione corrispondente
+```{r}
+max(yv)  #168
+#which(yv==168)    23
+#S[23,]
+```
+*Il pattern più frequente è composto da 168 idnividui*
+
+Trasformo la matrice m in dataframe ed eseguo il subset per ottenere i risultati.
+```{r}
+mdf <- as.data.frame(m)
+subset(mdf,yv=="168")
+```
+*La configurazione maggiore è quella che vede 168 soggetti che risultano su tutto il periodo considerato abbastanza soddisfatti.*
+
+###Cerco quanti soggetti hanno sempre voto 4 in tutti i tempi
+```{r}
+subset(mdf,IKSJQ==4 & IKSJR==4 & IKSJR==4 & IKSJT==4 & IKSJU==4 & IKSJV==4 & IKSJW==4)
+```
+*Solo un soggetto ha questa configurazione, cioè è abbastanza insoddisfatto per tutto il periodo considerato.*
+
+###Cerco soggetti con pattern misto decrescente da 5 (insoddisfatto) a 1 (soddisfatto)
+Impostando solo i valori iniziali e finali desiderati, trovo tutto quello che può rientrare in questa casistica.
+```{r}
+subset(mdf,IKSJQ==5 & IKSJW==1)
+```
+*Trovo solo 3 pattern, ciascuno di frequenza 1, che partono da 5 e arrivano a 1*
+
+###Stima del modello latente
+La funzione che permette di stimare il modello est_lm_basic richiede come parametri di input: la matrice delle configurazioni di risposta S e il vettore delle frequenze yv, il numero di stati latenti k <= 5 e mod=1 per assumere l'omogeneità della matrice di transizione, start=0 per inizializzare in modo deterministico l'algoritmo di stima Expectation-Maximization.
+Fisso k, numero di stati latenti. Start è il tipo di inizializzazione dell'algoritmo EM: con start = 0 li fisso in modo deterministico.
+NB ricordiamoci di scalare S, in modo che parta da 0. S1 = 5-S ricategorizza le categorie: parte da 0 fino a 4
+```{r}
+S1 <- 5-S  #ricategorizzo la matrice di risposte
+#Si noti che cambiando la scala con cui sono misurate le risposte adesso nella matrice S risultano i valori da 0 a 4 che prima erano da 1 a 5 si ha che (1) 4; (2) 3; (3) 2; (4) 1; (5) 0
+
+
+k=3 #stati del processo latente
+mod <- est_lm_basic(S = S1, yv = yv, k=k,
+                    mod=1,
+                    start = 0)
+summary(mod)
+```
+*Output: step dà il numero di passi in salti di 10, lk è la logver, lk-lk0 è la differenza tra valori consecutivi di lk ogni 10 passi, disrepancy mi dà la quantità relativa di lk da confrontare con epsilon (10^-8). L'algoritmo converge con 83 Passi.*
+*Fissando k = 3 si intende individuare 3 sottopolazioni che sono clusterizzate in base al livello di soddisfazione.*
+
+###Lettura dei risultati
+Il summary dà gli stessi risultati che potremmo ottenere con le seguenti istruzioni. Esse sono utili se lette in questo ordine:
+```{r}
+mod$Psi #modello di misura --> caratterizzazione dei gruppi
+mod$piv #prob iniziali del modello latente
+mod$Pi #prob di transizione del modello latente
+```
+*Per interpretare i 3 stati latenti si ricorre alle probabilità stimate riferite al modello di misura y|u: probabilità di ogni categoria di risposta condizionata allo stato latente. Rispetto alle quali si evince che il primo gruppo è riferito a coloro che mostrano insoddisfazione o che non sono nè soddisfatti nè insoddisfatti (2 o 3)*
+*Nella tabella del modello di misura caratterizzo i gruppi del processo latente sottostante --> leggo la matrice in verticale: ho 3 gruppi (3 stati latenti) --> ho creato dei gruppi omogenei in base alla variabile risposta. Il primo gruppo raccoglie in generale quelli con soddisfazione prevalentemente 2. Il secondo gruppo raccoglie quelli prevalentemente soddisfatti 3. Il terzo gruppo quelli soddisfatti 3 e 4.*
+*In secondo luogo guardo le prob iniziali di ogni gruppo.*
+*Infine guardo le prob di transizione, definite sugli stati latenti.*
+
+Cerco i valori dei criteri di informazione.
+```{r}
+print(mod)
+```
+*L'oggetto in output restituisce il valore della verosimiglianza a convergenza, il numero dei parametri liberi del modello ed i corrispondenti valori di AIC e BIC.*
+
+
+###Stima del modello con k=2
+```{r}
+k1=2 #stati del processo latente
+mod1 <- est_lm_basic(S = S1, yv = yv, k=k1,
+                    mod=1,
+                    start = 0)
+summary(mod1)
+```
+*L'algoritmo è abbastanza veloce: 44 passi.*
+
+Confronto i due modelli in base al BIC, con 3 e 2 stati latenti.
+```{r}
+print(mod)
+print(mod1)
+```
+*Con 3 stati latenti stimo 20 parametri, mentre con 2 stati latenti ne stimo 11. Ma secondo il BIC è migliore quello con 3 categorie. Evidentemente, nonostante vi siano più parametri da stimare, l'aggiunta di uno stato latente è vantaggioso.*
+
+
+###Estraggo le probabilità condizionate a posteriori della risposta | latente.
+Cerco la probabilità a posteriori di appartenere ad ogni stato latente per la configurazione di risposta 1 e al primo tempo di osservazione.
+Facendo così riesco a fare ragionamenti sul processo latente sottostante.
+```{r}
+V <- mod$V
+V[1,1:3,1]
+```
+*L'oggetto V mi dà la distrib a posteriori per ogni osservazione delle probabilità di appartenere alle diverse classi latenti e nei diversi tempi osservati. Il primo soggetto osservato ha prob 0.8 di appartenere al 2 gruppo al tempo 1.*
+
+#08 01 18 lez 14: Regione di massima probabilità a posteriori: HPD
+##Distribuzione Beta-Binomiale
+Nel seguente esempio si utilizzano metodi numerici per determinare la densità con la massima probabilità per il parametro nel caso in cui la distribuzione a posteriori derivi dalla famiglia coniugata Beta-Binomiale.
+Nel procedimento che segue si fissa un valore k
+- k è un valore inferiore al massimo della posterior e si determinano le radici a e b dell'equazione p(theta|x) = k(alpha)
+- si cerca la regione C = P(theta compreso in a, b) considerando k^ come il valore di k ottimale che risolve l'equazione C = (1 - alpha) tale che si ottiene l'intervallo (theta_a(k^), theta_b(k^)) con massima probabilità per theta.
+
+Disegno una densità Beta(2,3) tramite function
+```{r}
+densbeta <- function(x,a,b){   #a è alpha    b è beta
+  x^(a-1)*(1-x)^(b-1)/beta(a,b)   #funzione beta già definita in R, integra a 1
+}
+```
+
+Disegno la distribuzione a posteriori ottenuta: P(theta|x)
+Parametri a=2 e b=3
+```{r}
+curve(densbeta(x, a=2,b=3),
+      0,1,  #definisco l'intervallo
+      col="red",
+      lwd=3,
+      ylab=expression(paste(p,"(", theta, "|X)")),
+      xlab=expression(theta),
+      main="Massima prob a posteriori"
+      )
+```
+
+###Intervallo di confidenza sulla posteriori Beta
+Intervallo calcolato tramite il Metodo del percentile con alpha=0.05
+Se la regione di credibilita' viene determinata con il metodo del percentile non e' una regione con massima densità a posterori per i valori del parametro: per alpha = 0.05 l'intervallo di confidenza risulta pari a
+```{r}
+CI <- qbeta(c(0.025,0.975),2,3)
+CI
+```
+*Questo ottenuto è un intervallo di confidenza dato rispetto ai quantili di un alpha scelto, non è l'intervallo a massima densità a posteriori. Gli estremi dell'IC sono 0.07 e 0.81 e appare centrato sulla moda. La densità compresa nei due estremi è tutta quella area sotto la curva, che è di 0.95 per costruzione.*
+
+Disegno la densità con IC calcolato col metodo percentile
+```{r}
+curve(densbeta(x, a=2,b=3),
+      0,1,  #definisco l'intervallo
+      col="red",
+      lwd=3,
+      ylab=expression(paste(p,"(", theta, "|X)")),
+      xlab=expression(theta),
+      main="Massima prob a posteriori"
+      )
+abline(v=CI,lty=2)
+legend(0.2,0.5,"Intervallo di confidenza",lty=2,cex=0.9)
+```
+
+
+###Calcolo HPD: optimise. cerco il massimo della funzione
+Calcolo HPD partendo da k=0.5
+```{r}
+#cerco la densità per valori noti dei parametri della funzione
+densbeta1 <- function(x){  
+  x^(2-1)*(1-x)^(3-1)/beta(2,3)
+}
+
+#cerco il punto di massimo della densità numericamente
+#come input richiede la funzione di densità da massimizzare
+#e il supporto del parametro
+optimise(densbeta1,  #
+         c(0,1), #supporto del parametro
+         maximum = T)
+```
+*objective è il corrispondente valore del massimo sull'asse Y; maximum è il valore di theta che massimizza la funzione Beta(2,3), cioè è il valore del parametro con probabilità più alta.*
+
+### Cerco il k ottimale, partendo da un valore iniziale k=0.5
+Per determinare l'intervallo HPD (highest posterior density) occorre cercare il valore di k^ partendo da un valore iniziale ad esempio k = 0.5
+```{r}
+curve(densbeta(x, a=2,b=3),
+      0,1,  #definisco l'intervallo
+      col="red",
+      lwd=3,
+      ylab=expression(paste(p,"(", theta, "|X)")),
+      xlab=expression(theta),
+      main="Massima prob a posteriori e k=0.5"
+      )
+abline(h=0.5,lty=2, col="gold",lwd=4)   #aggiungo linea orizzontale
+```
+
+###Traslazione della densità rispetto a k=0.5
+Prima devo ottenere la funzione traslata rispetto ai valori di k. Essa sarà la curva della regione massimizzata. K è un valore che rappresenta un'asticella (una soglia) per stringere l'area sotto la curva a nostro piacimento. Se vogliamo incrementare l'area, k scende. Se vogliamo diminuire l'area k va alzato. 
+
+Si scala la funzione rispetto a k = 0.5 e si disegnano le due densità
+```{r}
+betat <- function(x,a,b){
+  densbeta(x,a,b) - 0.5
+}
+
+curve(densbeta(x, a=2,b=3),
+      0,1,  #definisco l'intervallo
+      col="red",
+      lwd=3,
+      ylab=expression(paste(p,"(", theta, "|X)")),
+      xlab=expression(theta),
+      main="Massima prob a posteriori e k=0.5")
+curve(betat(x, a=2,b=3),
+      col="pink",
+      lwd=3,
+      lty=2,
+      add=T)
+abline(h=0.5,lty=2, col ="orange", lwd=3)
+legend(0.6,1.5,c("P(theta|x)","P(theta|x) traslata","k=0.5"),
+       col=c("red","pink","orange"), lty=1, cex = 0.8)
+
+```
+*Posso osservare la regione che massimizza la densità a posteriori (cioè la regione di credibilità, più probabile per i valori di theta in base alla densità a posteriori), che è l'area sottesa alla funzione traslata (la quale incorpora il valore di k). Gli estremi per l'intervallo di theta massimizzato sono i punti che si riflettono sull'asse x prendendo in considerazione la curva traslata.*
+
+###Calcolo gli estremi della regione di credibilità per il parametro theta
+I valori theta_a e theta_b nella funzione scalata rappresentano gli estremi della regione con la massima probabilità a posteriori e si ottengono con la funzione uniroot che richiede la funzione e il campo di variazione per le due radici.
+```{r}
+hpd1 <- uniroot(betat,c(0.0001,0.1),a=2,b=3) #estremo inferiore
+hpd2 <- uniroot(betat,c(0.07,0.9),a=2,b=3)   #estremo superiore
+h1 <- hpd1$root;h1
+h2 <- hpd2$root;h2
+```
+*Gli estremi della regione di credibilità sono 0.05 e 0.77*
+
+###Calcolo ampiezza dell'area tra gli estremi HPD
+Si calcola l'area complessiva della regione e si valuta rispetto al valore scelto per la credibilità ad esempio 1 - alpha = 0.95
+```{r}
+integrate(densbeta,lower=h1,upper = h2,a=2,b=3)
+```
+*Dato che risulta inferiore a 0.95, per considerare i valori fino al valore di 1 - alpha si ripete il procedimento per k in [0.45, 0.5]: si generano più valori di k e si definisce una matrice (risultati) che contiene tutti i valori degli estremi della regione con massima densità a posteriori*
+
+###Cerco K ottimale per ottenere area di credibilità pari a 0.95
+Creo una sequenza di tutti i possibili k nell'intervallo desiderato ed esploro per trovare l'ottimale, tramite ciclo for.
+```{r}
+k <- seq(0.45,0.5,0.001)
+risultati <- matrix(NA, ncol = 4, nrow = length(k))
+
+for(i in 1:length(k)){
+  traslata <- function(x,a,b)densbeta(x,a,b) - k[i]
+  hpd1 <- uniroot(traslata,c(0.0001,0.1),a=2,b=3)
+  h1 <-  hpd1$root
+  hpd2 <- uniroot(traslata,c(0.7,0.9),a=2,b=3)
+  h2 <- hpd2$root
+  int <- integrate(densbeta,
+                    lower=h1,
+                    upper=h2,
+                    a=2,b=3)
+  int1 <- int$value
+  fine <- i
+  if(int1 <= 0.95) break
+  risultati [i,] <- c(h1,h2,int1,k[i])
+                 
+}
+fine
+risultati
+```
+*Il ciclo ha testato 31 valori differenti di k per raggiungere un'area di credibilità di 0.95. Il k^ ottimale, cioè quello che assicura che l'area sottostante sia pari al livello di credibilità desiderato, è pari a 0.48. Gli estremi della regione sono quindi  0.04374221 0.7724356.*
+
+```{r}
+hpd <- risultati[fine-1,-3]
+hpd
+k[32]
+```
+
+Tracciando i segmenti rispetto all'intervallo HPD e all'intervallo ottenuto con il metodo del percentile si nota di come quest'ultimo sia influenzato dall'asimmetria della distribuzione.
+```{r}
+curve(densbeta(x,a=2,b=3),0,1,
+ylab=expression(paste(p,"(",theta,"|x)")),
+xlab=expression(theta),lwd=2, col ="blue")
+
+lines( x=c(CI[1],CI[1],CI[2],CI[2]),
+y=c(0,dbeta(c(CI[1],CI[2]),2,3),0),
+col="red",lwd=2,lty=2)
+
+lines( x=c(hpd[1],hpd[1],hpd[2],hpd[2]),
+y=c(0,dbeta(c(hpd[1],hpd[2]),2,3),0),
+col=1,lwd=2)
+
+legend(0.2,1,c("ci","HPD"), col=c("red",1),
+cex=0.8, lwd=2,lty=c(2,1))
+```
+
+##Trovo HPD sull'esempio del 22 novembre: sonno degli studenti
+Parametri e k=0.5
+```{r}
+a <- (3.26+11);a
+b <- (7.19+16);b
+```
+*I parametri della distrib a posteriori sono a=14.26 e b=23.19*
+
+Distribuzione a posteriori e traslata
+```{r}
+densbeta <- function(x,a,b){x^(a-1)*(1-x)^(b-1)/beta(a,b)}
+betat <- function(x,a,b) densbeta(x,a,b)-0.5
+curve(densbeta(x,a= 14.26,b = 23.19),0,1,
+      ylab=expression(paste(p,"(",theta,"|x)")),
+      xlab=expression(theta), 
+      col ="blue", 
+      lwd = 3 )
+curve(betat(x ,a=14.26,b=23.19),add=T,lty=3,lwd=2)
+abline(h=0.5,lty=2, col="gold",lwd=4)
+```
+
+IC metodo del percentile
+```{r}
+ci <- qbeta(c(0.025,0.975),14.26 ,23.19); ci
+```
+
+Estremi HPD
+```{r}
+hpd1 <- uniroot(betat,c(0.195,0.23),a=14.26,b=23.19);
+hpd2 <-  uniroot(betat,c(0.45,0.6),a=14.26,b=23.19)
+
+h1 <- hpd1$root; h1
+h2 <- hpd2$root; h2
+```
+
+Area
+```{r}
+integrate(densbeta,lower=h1,upper=h2,a=14.26,b=23.19)
+```
+*L'area ottenuta non è pari al livello di credibilità desiderato di 0.95*
+
+K ottimale per area pari a 0.95.
+Devo alzare k per diminuire l'area tra la curva traslata e la retta. Da 0.97 voglio che mi scenda a 0.95.
+```{r}
+k <- seq(0.7,0.8,by=0.001)
+risultati <- matrix(NA,ncol=4,nrow=length(k))
+
+for(i in 1:length(k)){
+  traslata <- function(x,a,b)densbeta(x,a,b)-k[i]
+  hpd1 <- uniroot(traslata,c(0.195,0.25),a=14.26,b=23.19)
+  h1 <-  hpd1$root
+  hpd2 <- uniroot(traslata,c(0.45,0.6),a=14.26,b=23.19)
+  h2 <-  hpd2$root
+  int <- integrate(densbeta,
+                   lower=h1,
+                   upper=h2,
+                   a=14.26,b=23.19)
+  int1<-int$value
+  fine<-i
+  if(int1 <= 0.95) break
+  risultati[i,] <- c(h1,h2,int1, k[i])
+}
+
+fine
+risultati
+
+hpd <- risultati[fine-1,-3];hpd
+```
+*Il valore di k ottimale è pari a 0.791, ottenuto dopo 92 iterazioni. Gli estremi della regione a massima probabilità sono 0.2302628 e 0.5347931.*
+
+```{r}
+curve(densbeta(x,a=14.26,b=23.19),0,1,
+      ylab=expression(paste(p,"(",theta,"|x)")),
+      xlab=expression(theta),lwd=2, col ="blue")
+lines( x=c(ci[1],ci[1],ci[2],ci[2]),
+       y=c(0,dbeta(c(ci[1],ci[2]),14.26,23.19),0),
+       col="red",
+       lwd=2,
+       lty=2)
+lines( x=c(hpd[1],hpd[1],hpd[2],hpd[2]),
+       y=c(0,dbeta(c(hpd[1],hpd[2]),14.26,23.19),0),
+       col=1,
+       lwd=2)
+legend(0,3,c("ci","HPD"),
+       col=c("red",1),
+       cex=0.8,
+       lwd=2,
+       lty=c(2,1))
+```
+*I due intervalli si assomigliano ma non coincidono, infatti l'IC risente dell'asimmetria della distribuzione. Il problema non si pone se la distribuzione a posteriori è simmetrica.*
+
+
+#09 01 18  lez 15: Distribuzione predittiva: esempio trapianti di cuore
+##Esempio di modello coniugato Gamma-Gammma: stima del tasso di mortalità
+Il seguente esempio tratto da Albert (2009) mostra un'applicazione delle distribuzioni della famiglia coniugata e l'utilizzo della distribuzione predittiva. Si dispone del numero n di trapianti di cuore eseguiti presso un certo ospedale e del numero y di decessi entro 30 giorni. Per le Y1, . . . ,Yn si assume una distribuzione di
+Poisson dove il parametro è definito da lambda_e ovvero dal tasso di mortalità lambda in base al numero di unità esposte e. La stima di massima verosimiglianza per il parametro potrebbe essere imprecisa quando le realizzazioni sono prossime a zero.
+
+###PRIOR
+Si utilizza un'informazione a priori per il tasso di mortalità nella famiglia coniugata p(lambda) -- Gamma(a,b) dove i valori di a e b possono essere determinati in base ai dati osservati sui trapianti effettuati in altri ospedali simili tra loro per tasso di mortalità. Ad esempio se si dispone delle rilevazioni riferite a 10 ospedali
+si considera:
+- a = somma per j=1...10 Zj --> alpha è il numero complessivo di decessi osservati negli ultimi 30 gg in 10 ospedali osservati
+- b = somma per j=1...10 Oj --> beta è il numero complessivo dei rispettivi pazienti esposti a trapianto negli ultimi 30 gg in 10 ospedali osservati
+Inoltre fisso un valore medio di riferimento per il tasso di mortalità (lambda della Poisson)
+```{r}
+alpha <- 16  #totale decessi nei 10 ospedali
+beta <- 15174  #totale pazienti esposti nei 10 ospedali
+lam <- alpha/beta;lam   #valore medio del tasso
+```
+*Il tasso è molto basso. La prior è quindi p(lambda) distribuita come una Gamma(16,15174)*
+
+Date queste premesse, cioè quando ho una prior Gamma(a,b) e una Poisson(lambda) per i dati, in una famiglia coniugata Gamma - Gamma, in base alla distribuzione di Poisson la distribuzione a posteriori è una Gamma(a + sommatoria yi, B + e) dove e sono gli esposti (n) e yi i casi totali.
+La distibuzione prevista per il numero di decessi f(y) è ancora una distribuzione di Poisson perchè modella lo stesso tipo di dati e si applica alle osservazioni future.
+Con la distribuzione predittiva f(y) si può valutare la validità del modello proposto utilizzando i dati. Se i nuovi valori osservati  sono compatibili con quelli ottenuti dalla distribuzione marginale a posteriori (predittiva) il modello assunto è ragionevole. Altrimenti se ad esempio i dati osservati sono nelle code della distribuzione predittiva il modello assunto per la prior potrebbe non essere adeguato, oppure la distribuzione delle verosimiglianza non è stata correttamente specificata.
+
+Tornando all'esempio, Supponendo che per l'ospedale di interesse si riscontra 1 decesso entro 30 giorni e un numero di operazioni eseguite pari a 66, il tasso di mortalità risulta pari a 1/66. Supponendo un valore medio per lambda = a/b, la distribuzione predittiva f(y) si determina come prodotto della Poisson (verosimiglianza) e della Gamma(a,b) (prior per lambda), rispetto alla Gamma(a+ sommatoria yi,b + e) (distribuzione a posteriori).
+Predittiva: f(y_new|y)=f(y|lambda)*p(lambda) / f(lambda|y)
+
+###OSSERVAZIONI
+Considero ora un solo ospedale per raccogliere osservazioni e sul quale improntare il modello.
+si osserva 1 solo decesso e 66 esposti.
+```{r}
+yobs <- 1  #osservato
+ex <- 66   #esposti
+y <- 0:10   #insieme plausibile per l'evento decesso
+```
+
+###DISTRIB PREDITTIVA fy PER IL NUMERO DI DECESSI
+fy = verosimiglianza*prior / posterior
+```{r}
+fy <- dpois(y,lam*ex)* #verosimiglianza per le osservazioni poisson
+  dgamma(lam,          #prior è una gamma di parametri fissati
+         shape = alpha,   #la disegno intorno al valor medio di lambda
+         rate = beta)        /   #divido per la posterior
+  dgamma(lam,
+         shape = alpha+y,
+         rate = beta+ex)
+
+cbind(y,round(fy,3))
+```
+*Per la distibuzione predittiva mi aspetto una densità molto alta per valori bassi dei decessi, infatti Si evince che la densità predittiva si concentra nei valori 0 e 1. Questo risultato permette di validare le scelte sulle distribuzioni implicate nel modello Bayesiano.*
+
+Disegno la prior e la posterior per il parametro di interesse lambda, cioè il tasso di mortalità, e per y=1 osservato nell'ospedale preso a riferimento
+```{r}
+curve(dgamma(x, shape = alpha, rate = beta),
+      col="green" , lwd=2, xlim = c(0,0.004), ylab = "Density")
+curve(dgamma(x, shape = alpha+1, rate = beta+ex),
+      add=T, col="red", lwd=2)
+legend(0.002,1000,c("Prior","Post"),
+       col=c("green","red"),
+       cex=0.8,
+       lwd=2,
+       lty=c(1,1))
+```
+*La prior è leggermente spostata a sinistra e più alta*
+
+Per un altro ospedale posso osservare una differente posterior.
+Osservo ad esempio 2 decessi per 100 interventi
+```{r}
+curve(dgamma(x,          shape = alpha,         rate = beta),
+      col="green" , lwd=2, xlim = c(0,0.004), ylab = "Density",
+      main="Confronto Prior e Posterior")
+curve(dgamma(x,         shape = alpha+1,         rate = beta+ex),
+      add=T, col="red", lwd=2)
+curve(dgamma(x,         shape = alpha+2,         rate = beta+100),
+      add=T, col="blue", lwd=2)
+
+legend(0.002,1000,c("Prior","Post ospedale 1", "Post ospedale 2"),
+       col=c("green","red","blue"),
+       cex=0.8,
+       lwd=2,
+       lty=1)
+```
+*In generale la regola è: assegno una prior e fisso i relativi parametri in base alle conoscenze degli esperti (ad esempio dico che la prior è una Gamma di parametri fissati); se i dati osservati sul fenomeno in studio seguono una Poisson, allora posso seguire la regola per la famiglia coniugata, per cui so che la Posterior è anch'essa una Gamma con parametri facili da calcolare secondo formule note. Questo metodo è comodo perchè non serve svolgere di nuovo i calcoli per nuove osservazioni, ma basta aggiornare i parametri della Posterior, la quale cambia se aggiungo/modifico osservazioni*
+*La distribuzione predittiva deriva dal rapporto tra prior X verosimiglianza / posterior, dove nella posterior posso mettere il valore ipotetico che mi interessa e che potrebbe essere osservato in futuro (plausibili valori di y). In pratica ottengo le probabilità con cui esso può presentarsi in base al passato e alla conoscenza del fenomeno.*
+
+#10 01 18 lez 16: Scelta della prior ed inferenza robusta
+##Famiglia coniugata Gaussiana e T di student
+##Inferenza sulla media campionaria con varianza nota
+
+Vedremo la robustezza di questo approccio, andando a modificare la natura della prior: Nel seguente esempio si valutano due diverse prior (Distribuzione di Gauss e T di Student) per la statistica media campionaria quando si assume nota la varianza della popolazione.
+Si noti che la media campionaria può essere scritta come combinazione lineare della media nelle prime n -1 osservazioni nel modo seguente:
+xmedio = (n-1/n) X xmedio_n-1 + 1/n X x_n
+
+Nel modello coniugato Gaussiano - Gaussiano se:
+- l(Xmedio; theta) -- N(theta,sigma2/n)    verosimiglianza
+- p(theta) -- N(mu,tau2)     prior
+allora la posterior è N(mu1,tau2_1)
+dove mu1= mu X [(1/tau2)/(1/sigma2 + 1/tau2)] + 
+x X [(1/sigma2)/(1/sigma2 + 1/tau2)]   è una media pesata
+e tau2_1 = 1/somma delle precisioni=1 / (1/sigma2 + 1/tau2)
+Altra scrittura di mu1 in funzione di tau2_1:
+mu1 = tau2_! X (1/sigma2 X x + mu X 1/tau2)
+Il valore atteso della posterior si può anche scrivere in funzione di x_n e xmedio_n-1 nel modo seguente:
+[x_n / (sigma2 + nXtau2)]  + [(n-1)Xxmedio_n-1 + nXtau2 + muXsigma2  /   sigma2 + nXtau2]
+
+Quando la prior ha varianza tau2 molto alta (precisione bassa) si dice che la prior è non informativa e la media della posterior è pesata in modo tale che pesino maggiormente le osservazioni.
+Quando la varianza dei dati osservati è molto alta (precisione bassa) allora la media della posterior è pesata in modo tale che pesi di più l'apporto informativo dato dalla prior.
+
+Tornando all'esempio, Supponendo di sapere in fase di elicitazione che il punteggio mediano a un test è pari a 100 e che un valore plausibile per il 95-esimo percentile della distribuzione è pari a 120, la funzione normal.select della libreria LearnBayes determina i valori dei paraemtri mu e tau2 della distribuzione a priori.
+
+###Imposto la prior e rispettivi parametri
+```{r}
+require(LearnBayes)
+quantile1 <- list(p=.5,x=100) #imposto la mediana 
+quantile2 <- list(p=.95,x=120)  #imposto il 95esimo perc
+ris <- normal.select(quantile1, quantile2)
+mu <- ris$mu; mu
+tau <- ris$sigma; tau
+```
+*Pertanto p(theta) -- N(100, 12.16^2)*
+
+Disegno la distribuzione a priori.
+```{r}
+curve(dnorm(x,mu, tau), col="hotpink",
+      main="Distribuzione a priori N(100,12.16^2)",
+      xlab = "theta",
+      lwd=3, xlim = c(0,200), ylab = "Density")
+```
+
+
+###Verosimiglianza Normale
+Supponendo n = 4 (4 punteggi osservati), e assumendo sigma (deviazione standard) nota e pari a 15, si mostra come cambia la distribuzione a posteriori quando il punteggio medio risulta pari a ¯x1 = 110,¯x2 = 125 e ¯x3 = 140.
+Supponendo di voler lavorare nella famiglia coniugata, la verosimiglianza sarà una Normale(theta, sigma2) con sigma2 noto e pari a 15^2.
+Quindi la distribuzione della media campionaria theta è N(theta, sigma/radice di n).
+```{r}
+sigma <- 15  #dev std nota per la verosimiglianza
+se <- sigma/sqrt(4) #dev std della media campionaria per n=4
+xnn <- c(110, 125, 140) #insieme di valori possibili per il punteggio medio, serviranno per testare diverse posterior
+```
+
+###Caratterizzazione della posterior secondo il modello coniugato
+Nel seguito si applicano le formule per ricavare le stime dei parametri mu1 e tau_1 per ogni valore realizzato del punteggio medio nel modo seguente:
+```{r}
+tau1 <- 1/sqrt(1/se^2 + 1/tau^2)  #dev std della post
+mu1 <- (xnn/se^2 + mu/tau^2) * tau1^2  #media della post scritta in funzione di tau1
+```
+
+Creo la tabella per vedere come cambia la media a posteriori al cambiare del punteggio medio osservato (basato sempre su 4 osservazioni); in pratica sto osservando diversi scenari per il campione osservato. Tau1 rimane sempre uguale perchè dipende solo da sigma2 e tau2 che sono fissati a priori.
+```{r}
+summ1 <- cbind(xnn, mu1, tau1)
+summ1
+```
+*La distribuzione a priori esercita una notevole influenza sulla distribuzione a posteriori anche quando come nel caso dell'osservazione ¯x2 = 125 il punteggio medio è lontano dal valore medio stabilito a priori pari a 100.*
+
+
+##Prior T di Student con 2 gdl
+Nel seguente esempio si evidenzia come cambia la distribuzione a posteriori quando la prior è la distribuzione T di Student con parametro di locazione ?? e di scala pari a taut e con 2 gradi di libertà. Il parametro di scala tau deve essere ricavato rispetto ai valori elicitati per la prior che sono ?? = 100 e 95esimo percentile pari a 120. Da cui:
+- P(theta < 120) = 0.95
+- P(theta - ?? / taut < 120 -100 / taut) = 0.95
+- fissando 2 gdl P(T2 < 20 / taut) = 0.95
+- il quantile t2(p) (di ordine p) della distribuzione T2 si ottiene dalla funzione qt
+- taut = 20 / t2(p)
+
+###Caratterizzazione della distribuzione a priori T di student.
+cerco il quantile 95esimo corrispondente alla t di student con 2 gdl tramite la funzione qt
+```{r}
+quant <- qt(0.95,2)
+quant
+taut <- 20/quant  #parametro di scala
+taut
+```
+
+Disegno la prior ottenuta con la T  con 2gdl per evidenziare le differenze con la Gaussiana (mu=100,tau=15)
+```{r}
+curve(1/taut*dt((x-mu)/taut,2), #uso il reciproco della variabilità
+      xlim=c(60,140) ,
+      xlab="theta", 
+      ylab="Distribuzione a priori", 
+      main ="Confronto delle distribuzioni per il punteggio medio", 
+      col ='purple', 
+      lwd=3)
+curve(dnorm(x,mean=mu,sd=tau), 
+       add=TRUE, 
+       lwd=1)
+ legend("topright",
+        legend=c("Densità T2","Densità Gaussiana"),
+        lwd=c(3,1),
+        col=c("purple", "black"))
+```
+*La T ha code più pesanti della normale*
+
+###Posterior
+Distribuzione a posteriori p(theta | X=x) approssima la distribuzione continua con una sua discretizzazione, cioè si genera una sequenza di plausibili valori di theta, il punteggio medio.
+```{r}
+theta <-  seq(60, 180, length = 500)
+summary(theta)
+```
+
+
+Si calcolano i valori della verosimiglianza p(X|theta) riferiti al valore medio considerando n = 4
+```{r}
+#verosimiglianza come sigma/radice di n perchè stiamo facendo la media campionaria
+n <- 4
+like <- dnorm(theta,mean=xnn,sd=sigma/sqrt(n))   
+summary(round(like,3) )
+```
+
+Si determinano i valori del parametro di posizione e di scala della distribuzione a posteriori nel modo seguente
+```{r}
+prior <- dt((theta - mu)/taut, 2)
+post <-  prior * like  #calcolo posterior
+post <- post/sum(post)  #normalizzo
+posizione <- sum(theta * post)
+posizione #media
+scala <- sqrt(sum(theta^2 * post) - posizione^2)
+scala #dispersione
+```
+*La distribuzione a posteriori di student con 2 gdl ha media 108.1 e variabilità 9.15*
+
+###Funzione alternativa per il calcolo della posterior
+Alternativamente posso usare questa funzione per unire tutte le operazioni! La funzione norm.t.compute, partendo da una serie di valori per theta, genera la distribuzione a posteriori e restituisce solo i parametri di scala e posizione per essa, utilizzando la prior e la verosimiglianza.
+```{r}
+norm.t.compute <- function(xnn){
+                  theta <- seq(60, 180, length = 500)
+                  like <- dnorm(theta,mean=xnn,sd=sigma/sqrt(n))
+                  prior <- dt((theta - mu)/taut, 2)
+                  post <- prior * like
+                  post <- post/sum(post)  #normalizzazione
+                  posizione <- sum(theta * post)  #media
+           scala <- sqrt(sum(theta^2 * post) - posizione^2) #disp
+                  c(xnn, posizione, scala) 
+ }
+```
+
+
+Applico la funzione al vettore xnn dei vari punteggi medi testati per ottenere i valori di confronto
+```{r}
+summ2<- t(sapply(c(110, 125, 140),norm.t.compute))
+dimnames(summ2)[[2]]=c("xnn","mu1 t","tau1 t")
+summ2
+```
+
+Confronto normale e student al variare della prior
+```{r}
+cbind(summ1,summ2)
+```
+*Si nota rispetto ai valori ricavati nell'esempio precedente che la media è rimasta invariata nel caso di ¯x1 = 125 ma è diminuita per ¯x2 = 110 e cresciuta per ¯x3 = 140.*
+
+Nel grafico seguente si confrontano le distribuzioni a posteriori per il punteggio medio al test ¯x3 = 140 ovvero quando l'osservazione è molto lontana dal valore medio assegnato a priori.
+```{r}
+theta <- seq(60, 180, length=500)
+# mu1[3]   140
+#tau1
+normpost <-dnorm(theta, mu1[3], tau1)
+normpost <- normpost/sum(normpost)
+plot(theta,normpost,
+      type="l",
+      lwd=1,
+      ylab=" ")
+
+like <- dnorm(theta,mean=140,sd=sigma/sqrt(n))
+prior <- dt((theta - mu)/taut, 2)
+tpost <- prior * like / sum(prior * like)
+
+lines(theta,tpost, col="orange", lwd=3)
+legend("topleft",
+       legend=c("posterior (prior Gauss)"," posterior (prior T2)"),
+       lwd=c(1,3), 
+       col = c( "black","orange"))
+```
+*La differenza si nota per valori lontani dalla media, cioè per outliers, per valori molto grandi del punteggio medio. Infatti differiscono soprattutto per il valore 140. Per valori medi osservati lontani da 100 la scelta di prior differenti conduce a distribuzioni a posteriori che possono risultare abbastanza diverse, pertanto l'inferenza non è particolarmente robusta.*
+
+##Metodo Metropolis-Hastings
+##Esempio di applicazione del Metropolis per la distribuzione a posteriori della media campionaria
+
+Ipotizzo un random walk per simulare i valori di theta
+x'= x+ epsilon
+supponendo epsilon come una N(0,d^2) con d=1
+
+I parametri della prior sono quindi fissati e pari a mu=0 e tau=1
+Per la verosimiglianza, sigma è noto e =1
+```{r}
+x <- 3   #valore iniziale
+mu <- 0
+tau <- 2
+sigma <- 1
+d <- 1
+```
+
+Ora generiamo delle realizzazioni e applichiamo il rapporto R.
+Imposto la simulazione.
+Il rapporto ha: al numeratore il prodotto tra le densità corrispondenti calcolate per il valore candidato theta.p, al denominatore ha lo stesso prodotto ma calcolato per il valore precedente theta[i-1]
+```{r}
+set.seed(1333)
+nsim <- 10
+theta <- rep(0,nsim)
+
+#inizializzo l'algoritmo col valore iniziale
+theta[1] <- x
+
+#costruisco il ciclo simulativo
+#theta.p è il candidato x'
+for(i in 2:nsim){
+  theta.p <- theta[i-1] + rnorm(1,0,d)  #x'= x + epsilon
+  #costruisco il rapporto R = (f * g)[i] / (f*g)[i-1]
+  ratio <- dnorm(x,theta.p,sigma)*dnorm(theta.p,mu,tau) /
+          dnorm(x,theta[i-1],sigma)*dnorm(theta[i-1],mu,tau) 
+  print(round(ratio,3))
+  
+  evento <- rbinom(1,1,min(ratio,1))
+  #evento successo = appartenere alla posterior
+  #se evento=0 rifiuto la realizzazione, se evento=1 accetto
+  #se ratio è inferiore a 1, prendo l'evento con prob data dal ratio
+  #più il valore candidato si avvicina al precedente, più avrò prob alta perchè il     rapporto si avvicina a 1 
+  #se ratio è > 1, prendo 1 e cioè avrò prob di evento 1
+  print(evento)
+  
+  theta.p[i] <- if(evento==1) theta.p else theta[i-1]
+               
+}
+```
+
+#15 01 18 lez 17: Metodo Metropolis-Hastings su famiglia coniugata gaussiana
+Nel caso della famiglia coniugata Normale in cui il parametro di interesse e' la media con varianza nota è possibile ricavare in forma analitica i parametri della distribuzione a posteriori. Tuttavia come illustato nella parte teorica delle dispense è possibile sviluppare la procedura Metropolis-Hastings nel modo che segue. Essa è utile quando il calcolo analitico dei parametri della distribuzione a posteriori non è possibile.
+Ipotizzo un random walk per simulare i valori di theta x'= x+ epsilon
+supponendo epsilon come una N(0,d^2) con d=1. In altri termini si ipotizza un valore iniziale per theta denotato come theta0. Si stabilisce la regola che alla prima simulazione theta1 = theta0 + e con e -- N(0, d^2) ad esempio d = 1.
+Si considerano i valori dei parametri della distribuzione a priori ?? e tau e si considera nota la varianza nella popolazione sigma = 1. Si procede con le simulazioni nel modo seguente.
+
+```{r}
+theta0 <- 3 #valore iniziale
+mu <- 0    #media della prior
+tau <- 2    #deviazione standard della prior
+sigma <- 1   #deviazione std della verosimiglianza
+d <- 1   #valore della dev std per la varianza della distribuzione del random walk
+```
+*Per la posterior, in base alle formule della famiglia coniugata, mu1 dovrebbe essere [0+(1/(1+1/2))x3]*
+
+##MH
+Ora vediamo col metodo M-H come risulta la media a posteriori mu1, ipotizzata ignota e ottenuta con simulazione.
+Imposto la simulazione.
+Ho 3 oggetti nel ciclo:
+- theta.p è la realizzazione candidata del random walk, distribuito come una normale con media 0 e varianza d^2
+- ratio è il rapporto MH: verosim X prior in theta.p/ verosim X prior in theta-1
+- evento accetto/rifiuto
+```{r}
+nsim  <- 10
+theta <- rep(0,nsim)
+
+theta[1] <- theta0
+set.seed(173)
+for(i in 2:nsim){
+       theta.p <- theta[i-1] + rnorm(1,0,d)   #realizzazione candidato
+       ratio <- dnorm(theta0, theta.p, sigma)*
+                 dnorm(theta.p, mu, tau) /
+                (dnorm(theta0, theta[i-1], sigma)
+                 *dnorm(theta[i-1], mu, tau))
+ print(ratio) 
+#il ratio mi dà solo la prob di successo con cui svolgerò l'evento successo/non successo, non è in base al suo valore se rifiuto o accetto il candidato. il ratio mi dà la prob di successo. certo che maggiore è il ratio, più ho prob di successo. è fondamentale per determinare l'evento successo, inteso come accettazione del candidato per la distribuzione a posteriori
+
+  evento <- rbinom(1,1,min(ratio,1))  #distribuzione di accettazione
+  # una realizzazione da un esperimento con prob di successo       min(ratio,1)
+  print(evento) #vedo se evento è 1: accettazione o 0: rifiuto
+ 
+  theta[i] <- if(evento==1) theta.p else theta[i-1]
+}
+
+print(theta)
+```
+*Con print(ratio) si ottengono i valori del rapporto di Metropolis-Hastings definito nell'equazione (1) delle dispense. Si nota che i 9 valori possono essere anche superiori a 1 e l'evento successo stabilisce se questi possano o meno essere accettati come realizzazioni per la distribuzione a posteriori. L'evento e' scelto in modo indipendente dal comportamento della catena ma la probabilita' di successo dell'evento e' scelta in base alle realizzazioni del rapporto (ratio). Il jump (ovvero la scelta di aggiungere a theta il valore proposto) viene fatta se si realizza l'evento successo altrimenti non avviene il passo successivo.*
+*In output avrò i 10 valori che mi aspetto come realizzazioni accettate per la posterior. Ho 3 volte il valore iniziale (cioè ho rifiutato 3 volte il valore generato) e 7 valori realizzati, quindi ho accettato 7 volte il valore simulato.*
+
+##Procedura di Burn-in
+Si scarta una parte di osservazioni o meglio una parte di valori generati, ad esempio la prima metà, in modo da rendere irrilevante l'influenza dei valori iniziali sulla distribuzione (perchè la ditribuzione di equilibrio si raggiunge dopo un numero elevato di iterazioni.
+```{r}
+theta1 <-theta[-(1:(nsim/2))]
+summary(theta1)
+```
+*Si scartano perchè, a meno di tantissime simulazioni nell'ordine delle decine di migliaia, voglio evitare della variabilità esterna che disturba. Il Periodo di Burning è il numero di step che si eliminano per ritenere buona la simulazione.*
+*Elimino perchè non mi aspetto di aver già trovato la distribuzione di equilibrio*
+
+##Bontà della simulazione
+Per giudicare la bontà della distribuzione a posteriori ottenuta, ci sono diversi metodi da implementare: metodi grafici e statistiche
+
+###Grafici diagnostici
+```{r}
+par(mfrow=c(2,2))
+hist(theta1)
+plot(theta1,pch=1,cex=0.3,xlim=c(0,3),ylim=c(-1,5))
+lines(theta1,lwd=0.5,col="red")
+plot(1:(nsim/2),theta1, type ='l', main = "d=1" )
+```
+*L'istogramma non indica una distribuzione normale*
+*Nel secondo grafico ho linea di tendenza delle realizzazioni del parametro*
+*Nel terzo grafico ho sull'ascissa il valore realtivo al numero di realizzazioni per l'algoritmo, sull'ordinata ho i valori realizzati: in questo caso vedo che scende ad un valore molto basso già al secondo passo.*
+*Quello che mi aspetto è che, al crescere del numero di realizzazioni, la serie si assesti attorno ad un valore medio*
+
+###Aumento il numero di simulazioni: 1 mln
+Occorre stabilire un numero di realizzazioni nsim molto elevato in quanto occorre essere certi di raggiungere la steady state distribution del processo stocastico.
+```{r}
+nsim  <- 10^6
+theta <- rep(0,nsim)
+theta[1] <- theta0
+set.seed(173)
+for(i in 2:nsim){
+       theta.p <- theta[i-1] + rnorm(1,0,d)
+       ratio <- dnorm(theta0, theta.p, sigma)*
+                 dnorm(theta.p, mu, tau) /
+                (dnorm(theta0, theta[i-1], sigma)
+                 *dnorm(theta[i-1], mu, tau))
+  evento <- rbinom(1,1,min(ratio,1))
+ 
+  theta[i] <- if(evento==1) theta.p else theta[i-1]
+}
+```
+
+Burn - in di metà realizzazioni
+```{r}
+theta1 <-theta[-(1:(nsim/2))]
+summary(theta1)
+```
+*Si nota dal summary che i valori per la media e la deviazione standard sono simuli a quelli riferiti ai valori teorici.*
+
+Grafici di diagnostica: mi aspetto che con così tante simulazioni si  ottenga una distibuzione asintoticamente normale e simmetrica
+```{r}
+par(mfrow=c(1,2))
+hist(theta1)
+plot(theta1,pch=1,cex=0.3,xlim=c(0,3),ylim=c(-1,5))
+lines(theta1,lwd=0.5,col="red")
+```
+
+###Traceplot
+Grafico che indica i valori del parametro vs numero di iterazioni
+```{r}
+plot(theta1,type ='l', main = "d=1")
+```
+*Questo grafico serve per vedere la variabilità dei valori campionati della distribuzione approssimata a posteriori del parametro. Osservandolo vediamo che esso si muove attorno al valore medio di 2.405 per il parametro e con variabilità più o meno costante, indice di buona simulazione.*
+
+Altri grafici potrebbero essere la funzione di autocorrelazione e la curva di densità a posteriori.
+```{r}
+par(mfrow=c(1,2))
+plot(acf(theta1))
+curve(dnorm(x,mean(theta1), sd(theta1)),
+      xlim = c(0,10))
+```
+
+
+###d=100 per la distribuzione del random walk
+Cambiamo d=100 cioè aumentiamo la variabilità della distribuzione di supporto del random walk
+```{r}
+theta0 <- 3 
+mu <- 0    
+tau <- 2    
+sigma <- 1   
+d <- 100
+```
+
+```{r}
+nsim  <- 10^6
+theta100 <- rep(0,nsim)
+theta100[1] <- theta0
+set.seed(173)
+for(i in 2:nsim){
+       theta.p <- theta100[i-1] + rnorm(1,0,d)
+       ratio <- dnorm(theta0, theta.p, sigma)*
+                 dnorm(theta.p, mu, tau) /
+                (dnorm(theta0, theta100[i-1], sigma)
+                 *dnorm(theta100[i-1], mu, tau))
+  evento <- rbinom(1,1,min(ratio,1))
+ 
+  theta100[i] <- if(evento==1) theta.p else theta100[i-1]
+}
+```
+
+```{r}
+theta1100 <-theta100[-(1:(nsim/2))]
+summary(theta1100)
+```
+
+```{r}
+par(mfrow=c(1,2))
+hist(theta1100)
+plot(theta1100,pch=1,cex=0.3,xlim=c(0,3),ylim=c(-1,5))
+lines(theta1100,lwd=0.5,col="red")
+```
+*Nel secondo ho una retta, per cui avendo una variabilità molto alta per il random walk, la catena non si muove molto, anzi rimane ferma per molti step rifiutando moltissimi valori. Per questo la distribuzione a posteriori simulata derivante non è da ritenersi molto significativa*
